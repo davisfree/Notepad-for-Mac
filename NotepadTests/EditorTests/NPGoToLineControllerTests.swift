@@ -10,6 +10,7 @@ import XCTest
 @testable import Notepad
 
 /// `NPGoToLineController.clampedLineNumber` 行号校验测试（纯函数）。
+@MainActor
 final class NPGoToLineControllerTests: XCTestCase {
 
     /// 合法输入原样返回。

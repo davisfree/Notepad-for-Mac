@@ -10,6 +10,7 @@ import XCTest
 @testable import Notepad
 
 /// `NPEditorView` 行列计算纯函数测试（无 UI 依赖，静态方法可直接单测）。
+@MainActor
 final class NPEditorViewTests: XCTestCase {
 
     /// 行列计算：首行首列从 1 开始。

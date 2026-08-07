@@ -29,15 +29,15 @@ targets:
         CODE_SIGN_ENTITLEMENTS: "Notepad/Supporting Files/Notepad.entitlements"
         ENABLE_HARDENED_RUNTIME: "YES"
         GENERATE_INFOPLIST_FILE: "NO"
-    dependencies:
-      - target: NotepadTests
-        requireObjCTests: false
 
   NotepadTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: NotepadTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Notepad
 
@@ -46,6 +46,9 @@ targets:
     platform: macOS
     sources:
       - path: NotepadUITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Notepad
 

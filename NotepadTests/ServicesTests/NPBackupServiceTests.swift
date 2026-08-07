@@ -80,7 +80,8 @@ final class NPBackupServiceTests: XCTestCase {
         sut.noteCursorPosition(42, for: document)
         document.textContent = "未命名内容"
         document.updateChangeCount(.changeDone)
-        XCTAssertTrue(waitFor { !self.sut.recoverableItems().isEmpty })
+        XCTAssertTrue(waitFor { self.sut.recoverableItems().first?.cursorPosition == 42 },
+                      "尾缘写入应包含光标位置与最终内容")
 
         let item = try XCTUnwrap(sut.recoverableItems().first)
         XCTAssertNil(item.originalFileURL)
