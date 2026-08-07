@@ -1,0 +1,24 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+# XcodeGen 生成物（setup.sh / CI 由 project.yml 生成，含绝对路径，不入库）
+Notepad.xcodeproj/
+Notepad.xcworkspace/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# 敏感文件（07 号文件 8.2：禁止提交密钥与证书）
+*.p12
+*.mobileprovision
+*.provisionprofile
+.env

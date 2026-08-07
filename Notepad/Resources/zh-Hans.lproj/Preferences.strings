@@ -1,0 +1,6 @@
+/* 偏好设置界面（简体中文） */
+
+"Preferences.Title" = "偏好设置";
+"Preferences.General" = "通用";
+"Preferences.Editor" = "编辑器";
+"Preferences.Font" = "字体";

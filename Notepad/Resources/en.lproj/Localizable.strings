@@ -1,0 +1,112 @@
+/* English (Base) — 用户可见字符串必须经 NSLocalizedString 引用（08 号文件 1.2） */
+
+/* 通用 */
+"OK" = "OK";
+"Cancel" = "Cancel";
+
+/* 菜单：应用 */
+"Menu.App" = "Notepad";
+"Menu.App.About" = "About Notepad";
+"Menu.App.CheckUpdates" = "Check for Updates…";
+"Menu.App.Preferences" = "Settings…";
+"Menu.App.Services" = "Services";
+"Menu.App.Hide" = "Hide Notepad";
+"Menu.App.HideOthers" = "Hide Others";
+"Menu.App.ShowAll" = "Show All";
+"Menu.App.Quit" = "Quit Notepad";
+
+/* 菜单：文件 */
+"Menu.File" = "File";
+"Menu.File.NewWindow" = "New Window";
+"Menu.File.NewTab" = "New Tab";
+"Menu.File.Open" = "Open…";
+"Menu.File.OpenRecent" = "Open Recent";
+"Menu.File.ClearRecent" = "Clear Menu";
+"Menu.File.Save" = "Save";
+"Menu.File.SaveAs" = "Save As…";
+"Menu.File.PageSetup" = "Page Setup…";
+"Menu.File.Print" = "Print…";
+"Menu.File.CloseTab" = "Close Tab";
+"Menu.File.CloseWindow" = "Close Window";
+
+/* 菜单：编辑 */
+"Menu.Edit" = "Edit";
+"Menu.Edit.Undo" = "Undo";
+"Menu.Edit.Redo" = "Redo";
+"Menu.Edit.Cut" = "Cut";
+"Menu.Edit.Copy" = "Copy";
+"Menu.Edit.Paste" = "Paste";
+"Menu.Edit.Delete" = "Delete";
+"Menu.Edit.SelectAll" = "Select All";
+"Menu.Edit.InsertTimestamp" = "Time/Date";
+"Menu.Edit.Find" = "Find…";
+"Menu.Edit.FindNext" = "Find Next";
+"Menu.Edit.FindPrevious" = "Find Previous";
+"Menu.Edit.Replace" = "Replace…";
+"Menu.Edit.GoToLine" = "Go To…";
+
+/* 菜单：格式 */
+"Menu.Format" = "Format";
+"Menu.Format.WordWrap" = "Word Wrap";
+"Menu.Format.Font" = "Font…";
+
+/* 菜单：视图 */
+"Menu.View" = "View";
+"Menu.View.Zoom" = "Zoom";
+"Menu.View.ZoomIn" = "Zoom In";
+"Menu.View.ZoomOut" = "Zoom Out";
+"Menu.View.ZoomReset" = "Restore Default Zoom";
+"Menu.View.StatusBar" = "Status Bar";
+"Menu.View.Theme" = "Theme";
+"Menu.View.ThemeLight" = "Light";
+"Menu.View.ThemeDark" = "Dark";
+"Menu.View.ThemeSystem" = "System";
+"Menu.View.AlwaysOnTop" = "Always on Top";
+
+/* 菜单：帮助 */
+"Menu.Help" = "Help";
+"Menu.Help.ViewHelp" = "View Help";
+"Menu.Help.SendFeedback" = "Send Feedback…";
+
+/* 状态栏 */
+"StatusBar.LineCol" = "Ln %lld, Col %lld";
+"StatusBar.LineEnding.CRLF" = "Windows (CRLF)";
+"StatusBar.LineEnding.LF" = "Unix (LF)";
+"StatusBar.LineEnding.CR" = "Macintosh (CR)";
+
+/* 主题 */
+"Theme.Light" = "Light";
+"Theme.Dark" = "Dark";
+"Theme.System" = "System";
+"StatusBar.Zoom.Custom" = "Custom…";
+
+/* 错误提示 */
+"Error.Encoding.ConversionFailed" = "The document contains characters that cannot be represented in the selected encoding.";
+
+/* 查找栏 */
+"FindBar.FindPlaceholder" = "Find";
+"FindBar.ReplacePlaceholder" = "Replace";
+"FindBar.CaseSensitive" = "Match Case";
+"FindBar.Replace" = "Replace";
+"FindBar.ReplaceAll" = "Replace All";
+"FindBar.NoMatches" = "No results";
+"FindBar.FindNext" = "Find Next";
+"FindBar.FindPrevious" = "Find Previous";
+"FindBar.Close" = "Close";
+"FindBar.ToggleReplace" = "Toggle Replace";
+
+/* 转到行 */
+"GoToLine.Title" = "Go To Line";
+"GoToLine.LineNumber" = "Line number:";
+"GoToLine.Go" = "Go To";
+"Menu.View.NextTab" = "Next Tab";
+"Menu.View.PreviousTab" = "Previous Tab";
+
+/* 编码检测错误 */
+"Error.NotPlainText" = "This file is not a plain text file and cannot be opened.";
+"Error.EncodingFailed" = "Encoding conversion failed. The file content may be corrupted.";
+"Error.EncodingUnsupported" = "Unsupported encoding format: %@.";
+
+/* 反馈邮件（帮助 → 发送反馈…） */
+"Feedback.MailSubject" = "Notepad Feedback";
+"Feedback.MailBody" = "App Version: %@\nmacOS: %@\n\n";

@@ -1,0 +1,67 @@
+# XcodeGen 项目定义 — 运行 `xcodegen generate` 生成 Notepad.xcodeproj
+name: Notepad
+options:
+  bundleIdPrefix: com.notepadmac
+  deploymentTarget:
+    macOS: "12.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    ARCHS: "$(ARCHS_STANDARD)"
+    ONLY_ACTIVE_ARCH: "NO"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  Notepad:
+    type: application
+    platform: macOS
+    sources:
+      - path: Notepad
+        excludes:
+          - "Supporting Files/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.notepadmac.Notepad
+        INFOPLIST_FILE: "Notepad/Supporting Files/Info.plist"
+        CODE_SIGN_ENTITLEMENTS: "Notepad/Supporting Files/Notepad.entitlements"
+        ENABLE_HARDENED_RUNTIME: "YES"
+        GENERATE_INFOPLIST_FILE: "NO"
+    dependencies:
+      - target: NotepadTests
+        requireObjCTests: false
+
+  NotepadTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: NotepadTests
+    dependencies:
+      - target: Notepad
+
+  NotepadUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: NotepadUITests
+    dependencies:
+      - target: Notepad
+
+schemes:
+  Notepad:
+    build:
+      targets:
+        Notepad: all
+        NotepadTests: [test]
+        NotepadUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - NotepadTests
+        - NotepadUITests
+    archive:
+      config: Release

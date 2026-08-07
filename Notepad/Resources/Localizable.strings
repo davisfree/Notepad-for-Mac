@@ -1,0 +1,16 @@
+"Menu.View.NextTab" = "Next Tab";
+"Menu.View.PreviousTab" = "Previous Tab";
+
+/* 标签右键菜单 */
+"Tab.Context.Close" = "Close";
+"Tab.Context.CloseOthers" = "Close Other Tabs";
+"Tab.Context.CloseToRight" = "Close Tabs to the Right";
+"Tab.Context.Duplicate" = "Duplicate Tab";
+"Tab.Context.RevealInFinder" = "Show in Finder";
+
+/* 打印 */
+"Print.PageXOfY" = "Page %1$lld of %2$lld";
+
+/* 大文件只读 */
+"LargeFile.ReadOnlyTitle" = "File Too Large";
+"LargeFile.ReadOnlyMessage" = "This file is larger than 10 MB. It will be opened in read-only mode.";

@@ -1,0 +1,127 @@
+/* 繁體中文 */
+
+/* 通用 */
+"OK" = "好";
+"Cancel" = "取消";
+
+/* 選單：應用 */
+"Menu.App" = "Notepad";
+"Menu.App.About" = "關於 Notepad";
+"Menu.App.CheckUpdates" = "檢查更新…";
+"Menu.App.Preferences" = "偏好設定…";
+"Menu.App.Services" = "服務";
+"Menu.App.Hide" = "隱藏 Notepad";
+"Menu.App.HideOthers" = "隱藏其他";
+"Menu.App.ShowAll" = "顯示全部";
+"Menu.App.Quit" = "結束 Notepad";
+
+/* 選單：檔案 */
+"Menu.File" = "檔案";
+"Menu.File.NewWindow" = "新增視窗";
+"Menu.File.NewTab" = "新增標籤頁";
+"Menu.File.Open" = "打開…";
+"Menu.File.OpenRecent" = "打開最近使用的項目";
+"Menu.File.ClearRecent" = "清除選單";
+"Menu.File.Save" = "儲存";
+"Menu.File.SaveAs" = "另存新檔…";
+"Menu.File.PageSetup" = "頁面設定…";
+"Menu.File.Print" = "列印…";
+"Menu.File.CloseTab" = "關閉標籤頁";
+"Menu.File.CloseWindow" = "關閉視窗";
+
+/* 選單：編輯 */
+"Menu.Edit" = "編輯";
+"Menu.Edit.Undo" = "還原";
+"Menu.Edit.Redo" = "重做";
+"Menu.Edit.Cut" = "剪下";
+"Menu.Edit.Copy" = "拷貝";
+"Menu.Edit.Paste" = "貼上";
+"Menu.Edit.Delete" = "刪除";
+"Menu.Edit.SelectAll" = "全選";
+"Menu.Edit.InsertTimestamp" = "時間/日期";
+"Menu.Edit.Find" = "尋找…";
+"Menu.Edit.FindNext" = "尋找下一個";
+"Menu.Edit.FindPrevious" = "尋找上一個";
+"Menu.Edit.Replace" = "取代…";
+"Menu.Edit.GoToLine" = "前往…";
+
+/* 選單：格式 */
+"Menu.Format" = "格式";
+"Menu.Format.WordWrap" = "自動換行";
+"Menu.Format.Font" = "字體…";
+
+/* 選單：顯示方式 */
+"Menu.View" = "顯示方式";
+"Menu.View.Zoom" = "縮放";
+"Menu.View.ZoomIn" = "放大";
+"Menu.View.ZoomOut" = "縮小";
+"Menu.View.ZoomReset" = "回復預設縮放";
+"Menu.View.StatusBar" = "狀態列";
+"Menu.View.Theme" = "主題";
+"Menu.View.ThemeLight" = "淺色模式";
+"Menu.View.ThemeDark" = "深色模式";
+"Menu.View.ThemeSystem" = "跟隨系統";
+"Menu.View.AlwaysOnTop" = "總是在最前";
+
+/* 選單：輔助說明 */
+"Menu.Help" = "輔助說明";
+"Menu.Help.ViewHelp" = "查看輔助說明";
+"Menu.Help.SendFeedback" = "傳送意見反應…";
+
+/* 状态栏 */
+"StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
+"StatusBar.LineEnding.CRLF" = "Windows (CRLF)";
+"StatusBar.LineEnding.LF" = "Unix (LF)";
+"StatusBar.LineEnding.CR" = "Macintosh (CR)";
+
+/* 主題 */
+"Theme.Light" = "淺色模式";
+"Theme.Dark" = "深色模式";
+"Theme.System" = "跟隨系統";
+"StatusBar.Zoom.Custom" = "自定…";
+
+/* 錯誤提示 */
+"Error.Encoding.ConversionFailed" = "文件包含無法以所選編碼表示的字元。";
+
+/* 尋找列 */
+"FindBar.FindPlaceholder" = "尋找";
+"FindBar.ReplacePlaceholder" = "取代為";
+"FindBar.CaseSensitive" = "區分大小寫";
+"FindBar.Replace" = "取代";
+"FindBar.ReplaceAll" = "全部取代";
+"FindBar.NoMatches" = "找不到";
+"FindBar.FindNext" = "尋找下一個";
+"FindBar.FindPrevious" = "尋找上一個";
+"FindBar.Close" = "關閉";
+"FindBar.ToggleReplace" = "切換取代";
+
+/* 前往行 */
+"GoToLine.Title" = "前往行";
+"GoToLine.LineNumber" = "行號：";
+"GoToLine.Go" = "前往";
+"Menu.View.NextTab" = "下一個標籤頁";
+"Menu.View.PreviousTab" = "上一個標籤頁";
+
+/* 標籤右鍵選單 */
+"Tab.Context.Close" = "關閉";
+"Tab.Context.CloseOthers" = "關閉其他標籤頁";
+"Tab.Context.CloseToRight" = "關閉右側標籤頁";
+"Tab.Context.Duplicate" = "複製標籤頁";
+"Tab.Context.RevealInFinder" = "在 Finder 中顯示";
+
+/* 列印 */
+"Print.PageXOfY" = "第 %1$lld 頁 共 %2$lld 頁";
+
+/* 大檔案唯讀 */
+"LargeFile.ReadOnlyTitle" = "檔案過大";
+"LargeFile.ReadOnlyMessage" = "此檔案超過 10MB，將以唯讀模式開啟。";
+"Menu.View.PreviousTab" = "上一個標籤頁";
+
+/* 編碼檢測錯誤 */
+"Error.NotPlainText" = "此檔案不是純文字檔案，無法開啟。";
+"Error.EncodingFailed" = "編碼轉換失敗，檔案內容可能已損壞。";
+"Error.EncodingUnsupported" = "不支援的編碼格式：%@。";
+
+/* 反馈邮件（帮助 → 发送反馈…） */
+"Feedback.MailSubject" = "Notepad 使用意見";
+"Feedback.MailBody" = "應用程式版本：%@\n系統版本：%@\n\n";

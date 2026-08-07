@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Release build (signed, requires secrets)
+        if: env.APPLE_ID != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: ./Scripts/release.sh
+
+      - name: Release build (unsigned DMG, open-source default)
+        if: env.APPLE_ID == ''
+        run: ./Scripts/release.sh --unsigned
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notepad-Release
+          path: build/Release/
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {print; found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' CHANGELOG.md > release-notes.md
+          echo "notes-size=$(wc -c < release-notes.md)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          DMGS=( build/Release/*.dmg )
+          if [ "${{ steps.notes.outputs.notes-size }}" -gt 0 ]; then
+            gh release create "$GITHUB_REF_NAME" "${DMGS[@]}" --notes-file release-notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" "${DMGS[@]}" --generate-notes
+          fi

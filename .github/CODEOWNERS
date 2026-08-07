@@ -1,0 +1,13 @@
+# 代码审查责任人（按 07_PROJECT_STRUCTURE.md 第 9 节）
+# 格式：路径  @负责人
+
+# 需架构师 Review
+/Notepad/App/                @architect
+
+# 需核心开发 Review
+/Notepad/Document/           @core-dev
+/Notepad/Editor/             @core-dev
+/Notepad/Services/           @core-dev
+
+# 需设计师/前端 Review
+/Notepad/Resources/          @designer
