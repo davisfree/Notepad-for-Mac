@@ -54,6 +54,7 @@ final class NPStatusBarController: NPStatusBarDelegate {
         self.editorView = editorView
         statusBar.delegate = self
         refreshFromDocument()
+        updateCharacterCount()
         let center = NotificationCenter.default
         for name in [NPNotificationNames.documentEncodingDidChange, NPNotificationNames.documentLineEndingDidChange] {
             let observer = center.addObserver(forName: name, object: document, queue: nil) { [weak self] _ in
@@ -88,6 +89,11 @@ final class NPStatusBarController: NPStatusBarDelegate {
         statusBar.zoomLevel = zoomLevel
     }
 
+    /// 更新字符数显示（排除换行符；文本变化时由 `NPEditorController.onTextDidChange` 驱动，初始值在 init 读取）。
+    func updateCharacterCount() {
+        statusBar.characterCount = NPStatusBarFormatter.characterCount(in: editorView?.text ?? "")
+    }
+
     // MARK: - NPStatusBarDelegate
 
     /// 点击 "Ln, Col"：弹出"转到行"浮动面板（复用编辑器 ⌃G 入口）。
@@ -117,7 +123,7 @@ final class NPStatusBarController: NPStatusBarDelegate {
         )
         customItem.target = self
         menu.addItem(customItem)
-        presentMenu(menu)
+        presentMenu(menu, from: statusBar.zoomButton)
     }
 
     /// 点击换行符：弹出 CRLF / LF / CR 切换菜单（回写 `document.changeLineEnding`）。
@@ -134,7 +140,7 @@ final class NPStatusBarController: NPStatusBarDelegate {
             }
             menu.addItem(item)
         }
-        presentMenu(menu)
+        presentMenu(menu, from: statusBar.lineEndingButton)
     }
 
     /// 点击编码：弹出编码切换菜单（回写 `document.changeEncoding`，失败弹错）。
@@ -154,7 +160,7 @@ final class NPStatusBarController: NPStatusBarDelegate {
             }
             menu.addItem(item)
         }
-        presentMenu(menu)
+        presentMenu(menu, from: statusBar.encodingButton)
     }
 
     // MARK: - 菜单动作
@@ -209,10 +215,12 @@ final class NPStatusBarController: NPStatusBarDelegate {
         statusBar.lineEnding = document.currentLineEnding
     }
 
-    /// 在状态栏上方弹出菜单。
-    /// - Parameter menu: 菜单
-    private func presentMenu(_ menu: NSMenu) {
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: statusBar.bounds.height), in: statusBar)
+    /// 在触发按钮上方弹出菜单（菜单左边缘与按钮左边缘对齐）。
+    /// - Parameters:
+    ///   - menu: 菜单
+    ///   - button: 触发按钮
+    private func presentMenu(_ menu: NSMenu, from button: NPStatusBarButton) {
+        statusBar.showMenu(menu, alignedTo: button)
     }
 
     /// 编码转换失败错误提示（sheet）。

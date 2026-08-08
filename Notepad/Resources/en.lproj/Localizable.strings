@@ -15,6 +15,19 @@
 "Menu.App.ShowAll" = "Show All";
 "Menu.App.Quit" = "Quit Notepad";
 
+/* 菜单：显示语言 */
+"Menu.App.Language" = "Language";
+"Menu.App.Language.System" = "System";
+"Menu.App.Language.English" = "English";
+"Menu.App.Language.ZhHans" = "Simplified Chinese";
+"Menu.App.Language.ZhHant" = "Traditional Chinese";
+
+/* 显示语言：重启提示 */
+"Language.RestartRequired.Title" = "Restart Required";
+"Language.RestartRequired.Message" = "The display language will take effect after you restart Notepad.";
+"Language.RestartNow" = "Restart Now";
+"Language.RestartLater" = "Later";
+
 /* 菜单：文件 */
 "Menu.File" = "File";
 "Menu.File.NewWindow" = "New Window";
@@ -28,6 +41,9 @@
 "Menu.File.Print" = "Print…";
 "Menu.File.CloseTab" = "Close Tab";
 "Menu.File.CloseWindow" = "Close Window";
+
+/* 打印 */
+"Print.PageXOfY" = "Page %1$lld of %2$lld";
 
 /* 菜单：编辑 */
 "Menu.Edit" = "Edit";
@@ -56,12 +72,21 @@
 "Menu.View.ZoomIn" = "Zoom In";
 "Menu.View.ZoomOut" = "Zoom Out";
 "Menu.View.ZoomReset" = "Restore Default Zoom";
+"Menu.View.NextTab" = "Next Tab";
+"Menu.View.PreviousTab" = "Previous Tab";
 "Menu.View.StatusBar" = "Status Bar";
 "Menu.View.Theme" = "Theme";
 "Menu.View.ThemeLight" = "Light";
 "Menu.View.ThemeDark" = "Dark";
 "Menu.View.ThemeSystem" = "System";
 "Menu.View.AlwaysOnTop" = "Always on Top";
+
+/* 标签页右键菜单 */
+"Tab.Context.Close" = "Close";
+"Tab.Context.CloseOthers" = "Close Other Tabs";
+"Tab.Context.CloseToRight" = "Close Tabs to the Right";
+"Tab.Context.Duplicate" = "Duplicate Tab";
+"Tab.Context.RevealInFinder" = "Show in Finder";
 
 /* 菜单：帮助 */
 "Menu.Help" = "Help";
@@ -70,6 +95,7 @@
 
 /* 状态栏 */
 "StatusBar.LineCol" = "Ln %lld, Col %lld";
+"StatusBar.CharacterCount" = "%@ characters";
 "StatusBar.LineEnding.CRLF" = "Windows (CRLF)";
 "StatusBar.LineEnding.LF" = "Unix (LF)";
 "StatusBar.LineEnding.CR" = "Macintosh (CR)";
@@ -82,6 +108,10 @@
 
 /* 错误提示 */
 "Error.Encoding.ConversionFailed" = "The document contains characters that cannot be represented in the selected encoding.";
+
+/* 大文件只读提示 */
+"LargeFile.ReadOnlyTitle" = "File Too Large";
+"LargeFile.ReadOnlyMessage" = "This file is over 10 MB and will be opened in read-only mode.";
 
 /* 查找栏 */
 "FindBar.FindPlaceholder" = "Find";
@@ -99,8 +129,6 @@
 "GoToLine.Title" = "Go To Line";
 "GoToLine.LineNumber" = "Line number:";
 "GoToLine.Go" = "Go To";
-"Menu.View.NextTab" = "Next Tab";
-"Menu.View.PreviousTab" = "Previous Tab";
 
 /* 编码检测错误 */
 "Error.NotPlainText" = "This file is not a plain text file and cannot be opened.";

@@ -33,6 +33,8 @@ final class NPEditorController: NPEditorDelegate {
     var onMatchesDidChange: (((current: Int, total: Int)?) -> Void)?
     /// 光标位置变化回调（UTF-16 偏移，供会话备份记录光标）
     var onCursorPositionChange: ((Int) -> Void)?
+    /// 文本内容变化回调（用户编辑与"全部替换"后触发，供状态栏字符数等 UI 消费）
+    var onTextDidChange: (() -> Void)?
     /// 最近一次查找的搜索词（替换操作时复用）
     private var lastQuery: String?
     /// 最近一次查找的选项（替换操作时复用）
@@ -205,11 +207,14 @@ final class NPEditorController: NPEditorDelegate {
     // MARK: - 私有
 
     /// 将编辑器内容同步到文档并标记脏状态。
+    /// 统一在文本变化（用户编辑 `editorDidChangeContent`、全部替换 `replaceAll`）后调用，
+    /// 故 `onTextDidChange` 在此触发可覆盖两条路径。
     private func syncDocument() {
         guard let document else {
             return
         }
         document.textContent = editorView.text
         document.updateChangeCount(.changeDone)
+        onTextDidChange?()
     }
 }

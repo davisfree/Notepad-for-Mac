@@ -31,6 +31,26 @@ enum NPStatusBarFormatter {
         "\(Int((zoomLevel * 100.0).rounded()))%"
     }
 
+    // MARK: - 字符数
+
+    /// 统计文档字符数（排除换行符等行分隔符，对齐 Win11 状态栏行为；换行符归属行长数据）。
+    /// - Parameter text: 文档文本
+    /// - Returns: 非换行字符数
+    static func characterCount(in text: String) -> Int {
+        text.filter { !$0.isNewline }.count
+    }
+
+    /// 字符数文案（Win11 状态栏同款信息块：千分位数字 + 本地化单位，如 `1,234 characters` / `1,234 个字符`）。
+    /// 数字部分按当前区域格式分组。
+    /// - Parameter count: 字符数
+    /// - Returns: 格式化文案
+    static func characterCountText(_ count: Int) -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        let numberText = numberFormatter.string(from: NSNumber(value: count)) ?? "\(count)"
+        return String(format: NSLocalizedString("StatusBar.CharacterCount", comment: "状态栏：字符数"), numberText)
+    }
+
     // MARK: - 编码
 
     /// 编码显示名（对齐 `02_UI_DESIGN.md` 3.3 清单；`ANSI` 沿用 Win11 文案，其实现为 Windows-1252；

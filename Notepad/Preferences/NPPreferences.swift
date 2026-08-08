@@ -67,6 +67,7 @@ final class NPPreferences: ObservableObject {
         static let defaultLineEnding = "defaultLineEnding"
         static let isStatusBarVisible = "isStatusBarVisible"
         static let defaultZoomLevel = "defaultZoomLevel"
+        static let displayLanguage = "displayLanguage"
         static let lastWindowFrame = "lastWindowFrame"
     }
 
@@ -124,6 +125,11 @@ final class NPPreferences: ObservableObject {
         didSet { persist(defaultZoomLevel, forKey: Key.defaultZoomLevel) }
     }
 
+    /// 显示语言（默认跟随系统；切换后重启生效）
+    @Published var displayLanguage: NPLanguage {
+        didSet { persist(displayLanguage.rawValue, forKey: Key.displayLanguage) }
+    }
+
     // MARK: - 窗口状态（非 @Published）
     // 窗口 frame 变化高频，不做可观察属性；退出时写入 UserDefaults，启动时读取
 
@@ -156,6 +162,7 @@ final class NPPreferences: ObservableObject {
         isStatusBarVisible = (defaults.object(forKey: Key.isStatusBarVisible) as? Bool) ?? true
         let storedZoom = (defaults.object(forKey: Key.defaultZoomLevel) as? Double) ?? 1.0
         defaultZoomLevel = min(max(storedZoom, 0.1), 5.0)
+        displayLanguage = NPLanguage(rawValue: defaults.string(forKey: Key.displayLanguage) ?? "") ?? .system
         if let frameString = defaults.string(forKey: Key.lastWindowFrame) {
             lastWindowFrame = NSRectFromString(frameString)
         } else {
@@ -175,6 +182,7 @@ final class NPPreferences: ObservableObject {
         defaultLineEnding = .lf
         isStatusBarVisible = true
         defaultZoomLevel = 1.0
+        displayLanguage = .system
         lastWindowFrame = Self.defaultWindowFrame
     }
 
@@ -196,6 +204,7 @@ final class NPPreferences: ObservableObject {
             "defaultEncoding": Int(defaultEncoding.rawValue),
             "defaultLineEnding": defaultLineEnding.rawValue,
             "zoomLevel": defaultZoomLevel * 100.0,
+            "language": displayLanguage.rawValue,
         ]
         return try JSONSerialization.data(withJSONObject: dictionary, options: [.prettyPrinted, .sortedKeys])
     }
@@ -237,6 +246,12 @@ final class NPPreferences: ObservableObject {
         }
         if let value = dictionary["zoomLevel"] as? NSNumber {
             defaultZoomLevel = min(max(value.doubleValue / 100.0, 0.1), 5.0)
+        }
+        if let rawLanguage = dictionary["language"] as? String {
+            guard let parsed = NPLanguage(rawValue: rawLanguage) else {
+                throw NPPreferencesError.invalidFormat
+            }
+            displayLanguage = parsed
         }
     }
 

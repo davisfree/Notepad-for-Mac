@@ -26,6 +26,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 禁用 AppKit 窗口状态还原：坏/空的持久状态会抑制启动时的自动新建文档
         // （首次点击 Dock 图标无窗口），且会话恢复本就由 NPBackupService 自研（Phase 3，PRD FR-003）
         UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
+        // 显示语言覆盖：非"跟随系统"时写 AppleLanguages。必须早于任何本地化解析，
+        // 故置于 init（main 启动最早期）；切换后重启生效（AppleLanguages 由 Foundation 缓存）。
+        if let languages = NPPreferences.shared.displayLanguage.appleLanguagesValue {
+            UserDefaults.standard.set(languages, forKey: "AppleLanguages")
+        }
         // 首个创建的 NSDocumentController 实例会成为 shared controller，
         // 必须早于任何 NSDocumentController.shared 访问（见 NPDocumentController 注释）
         _ = NPDocumentController()
@@ -57,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameter notification: 启动通知
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = NPMenuBuilder.buildMainMenu()
+        updateLanguageMenuState()
         NPBackupService.shared.cleanExpiredBackups()
         let records = NPBackupService.shared.recoverableRecords()
         if !records.isEmpty {
@@ -313,6 +319,102 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameter sender: 菜单项
     @objc func showPreferences(_ sender: Any?) {
         // TODO: 接入偏好设置窗口（Preferences 模块，04 §4.1）
+    }
+
+    /// Notepad → 显示语言 → 选择界面语言（持久化并提示重启生效）。
+    /// - Parameter sender: 菜单项（tag 区分语言项）
+    @objc func selectDisplayLanguage(_ sender: NSMenuItem) {
+        let language: NPLanguage
+        switch sender.tag {
+        case NPConstants.MenuTag.languageEnglish:
+            language = .english
+        case NPConstants.MenuTag.languageZhHans:
+            language = .simplifiedChinese
+        case NPConstants.MenuTag.languageZhHant:
+            language = .traditionalChinese
+        default:
+            language = .system
+        }
+        guard NPPreferences.shared.displayLanguage != language else {
+            return
+        }
+        NPPreferences.shared.displayLanguage = language
+        // 切换时同步写 AppleLanguages（启动时也会写一次，此处确保"立即重启"的新进程
+        // 在 Foundation 语言解析前就能读到新值，否则界面语言会比勾选晚一次重启生效）。
+        if let languages = language.appleLanguagesValue {
+            UserDefaults.standard.set(languages, forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize() // 保证重启前落盘
+        }
+        presentLanguageRestartAlert()
+    }
+
+    /// 显示语言切换提示：重启后生效，提供"立即重启 / 稍后"。
+    private func presentLanguageRestartAlert() {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("Language.RestartRequired.Title",
+                                              comment: "显示语言：重启提示标题")
+        alert.informativeText = NSLocalizedString("Language.RestartRequired.Message",
+                                                  comment: "显示语言：重启提示内容")
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: NSLocalizedString("Language.RestartNow",
+                                                     comment: "显示语言：立即重启"))
+        alert.addButton(withTitle: NSLocalizedString("Language.RestartLater",
+                                                     comment: "显示语言：稍后"))
+        let parentWindow = NSApp.mainWindow ?? NSApp.windows.first
+        if let parentWindow {
+            alert.beginSheetModal(for: parentWindow) { [weak self] response in
+                if response == .alertFirstButtonReturn {
+                    self?.relaunchApplication()
+                }
+            }
+        } else {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                relaunchApplication()
+            }
+        }
+    }
+
+    /// 经 `open` 重启应用（新进程接管后终止当前进程）。
+    private func relaunchApplication() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = [Bundle.main.bundleURL.path]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
+    /// 按当前显示语言更新"显示语言"子菜单勾选（仅语言 tag 区间，不影响主题等其它 tag 菜单）。
+    private func updateLanguageMenuState() {
+        guard let menu = NSApp.mainMenu else {
+            return
+        }
+        let selectedTag: Int
+        switch NPPreferences.shared.displayLanguage {
+        case .system:
+            selectedTag = NPConstants.MenuTag.languageSystem
+        case .english:
+            selectedTag = NPConstants.MenuTag.languageEnglish
+        case .simplifiedChinese:
+            selectedTag = NPConstants.MenuTag.languageZhHans
+        case .traditionalChinese:
+            selectedTag = NPConstants.MenuTag.languageZhHant
+        }
+        let languageTags = Set([NPConstants.MenuTag.languageSystem,
+                                NPConstants.MenuTag.languageEnglish,
+                                NPConstants.MenuTag.languageZhHans,
+                                NPConstants.MenuTag.languageZhHant])
+        func visit(_ menu: NSMenu) {
+            for item in menu.items {
+                if languageTags.contains(item.tag) {
+                    item.state = (item.tag == selectedTag) ? .on : .off
+                }
+                if let submenu = item.submenu {
+                    visit(submenu)
+                }
+            }
+        }
+        visit(menu)
     }
 
 #if !APP_STORE

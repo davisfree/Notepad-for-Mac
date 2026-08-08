@@ -154,6 +154,7 @@ enum NPMenuBuilder {
         items.append(contentsOf: [
             NPMenuItemSpec(titleKey: "Menu.App.Preferences", keyEquivalent: ",", actionName: "showPreferences:",
                            target: .appDelegate),
+            NPMenuItemSpec(titleKey: "Menu.App.Language", children: languageMenuChildren),
             .separator,
             NPMenuItemSpec(titleKey: "Menu.App.Services", tag: NPConstants.MenuTag.services),
             .separator,
@@ -166,6 +167,18 @@ enum NPMenuBuilder {
         ])
         return items
     }()
+
+    /// 显示语言子菜单（Notepad → 显示语言；勾选状态由 AppDelegate 启动时按偏好更新）。
+    private static let languageMenuChildren: [NPMenuItemSpec] = [
+        NPMenuItemSpec(titleKey: "Menu.App.Language.System", actionName: "selectDisplayLanguage:",
+                       target: .appDelegate, tag: NPConstants.MenuTag.languageSystem),
+        NPMenuItemSpec(titleKey: "Menu.App.Language.English", actionName: "selectDisplayLanguage:",
+                       target: .appDelegate, tag: NPConstants.MenuTag.languageEnglish),
+        NPMenuItemSpec(titleKey: "Menu.App.Language.ZhHans", actionName: "selectDisplayLanguage:",
+                       target: .appDelegate, tag: NPConstants.MenuTag.languageZhHans),
+        NPMenuItemSpec(titleKey: "Menu.App.Language.ZhHant", actionName: "selectDisplayLanguage:",
+                       target: .appDelegate, tag: NPConstants.MenuTag.languageZhHant),
+    ]
 
     /// 文件菜单。
     private static let fileMenuChildren: [NPMenuItemSpec] = [

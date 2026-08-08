@@ -29,6 +29,22 @@ final class NPStatusBarFormatterTests: XCTestCase {
         XCTAssertEqual(NPStatusBarFormatter.zoomText(1.449), "145%")
     }
 
+    /// 字符数文案：经 `StatusBar.CharacterCount` 本地化模板格式化（Base 为 "%@ characters"，
+    /// 与 `testLineColumnText` 同模式——测试进程解析本地化失败时两侧同值仍相等）。
+    func testCharacterCountText() {
+        XCTAssertEqual(NPStatusBarFormatter.characterCountText(0),
+                       String(format: NSLocalizedString("StatusBar.CharacterCount", comment: ""), "0"))
+    }
+
+    /// 字符数统计：排除换行符（对齐 Win11 状态栏行为）。
+    func testCharacterCountExcludesNewlines() {
+        XCTAssertEqual(NPStatusBarFormatter.characterCount(in: ""), 0)
+        XCTAssertEqual(NPStatusBarFormatter.characterCount(in: "abc"), 3)
+        XCTAssertEqual(NPStatusBarFormatter.characterCount(in: "a\nb\r\nc"), 3)
+        XCTAssertEqual(NPStatusBarFormatter.characterCount(in: "\n"), 0)
+        XCTAssertEqual(NPStatusBarFormatter.characterCount(in: "换行\n测试"), 4)
+    }
+
     /// 编码显示名：02 §3.3 全清单。
     func testEncodingNames() {
         XCTAssertEqual(NPStatusBarFormatter.encodingName(for: .utf8, hasBOM: false), "UTF-8")

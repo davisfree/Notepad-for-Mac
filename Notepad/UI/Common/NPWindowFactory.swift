@@ -49,6 +49,10 @@ enum NPWindowFactory {
         editorController.onZoomDidChange = { [weak statusBarController] zoomLevel in
             statusBarController?.updateZoom(zoomLevel)
         }
+        // 文本变化：状态栏字符数
+        editorController.onTextDidChange = { [weak statusBarController] in
+            statusBarController?.updateCharacterCount()
+        }
         // 光标位置回报会话备份（Services 层，随文档弱引用）
         editorController.onCursorPositionChange = { [weak document] position in
             guard let document else {

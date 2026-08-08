@@ -15,6 +15,19 @@
 "Menu.App.ShowAll" = "顯示全部";
 "Menu.App.Quit" = "結束 Notepad";
 
+/* 選單：顯示語言 */
+"Menu.App.Language" = "顯示語言";
+"Menu.App.Language.System" = "跟隨系統";
+"Menu.App.Language.English" = "英文";
+"Menu.App.Language.ZhHans" = "簡體中文";
+"Menu.App.Language.ZhHant" = "繁體中文";
+
+/* 顯示語言：重新啟動提示 */
+"Language.RestartRequired.Title" = "需要重新啟動";
+"Language.RestartRequired.Message" = "顯示語言將在重新啟動 Notepad 後生效。";
+"Language.RestartNow" = "立即重新啟動";
+"Language.RestartLater" = "稍後";
+
 /* 選單：檔案 */
 "Menu.File" = "檔案";
 "Menu.File.NewWindow" = "新增視窗";
@@ -70,6 +83,7 @@
 
 /* 状态栏 */
 "StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
+"StatusBar.CharacterCount" = "%@ 個字元";
 "StatusBar.LineEnding.CRLF" = "Windows (CRLF)";
 "StatusBar.LineEnding.LF" = "Unix (LF)";
 "StatusBar.LineEnding.CR" = "Macintosh (CR)";
@@ -115,7 +129,6 @@
 /* 大檔案唯讀 */
 "LargeFile.ReadOnlyTitle" = "檔案過大";
 "LargeFile.ReadOnlyMessage" = "此檔案超過 10MB，將以唯讀模式開啟。";
-"Menu.View.PreviousTab" = "上一個標籤頁";
 
 /* 編碼檢測錯誤 */
 "Error.NotPlainText" = "此檔案不是純文字檔案，無法開啟。";
@@ -125,3 +138,12 @@
 /* 反馈邮件（帮助 → 发送反馈…） */
 "Feedback.MailSubject" = "Notepad 使用意見";
 "Feedback.MailBody" = "應用程式版本：%@\n系統版本：%@\n\n";
+
+/* 快捷指令（App Intents，macOS 13+） */
+"Open File with Notepad" = "用 Notepad 開啟檔案";
+"Opens a text file in Notepad." = "在 Notepad 中開啟文字檔案。";
+"File" = "檔案";
+"Open File" = "開啟檔案";
+"Create New Text File" = "建立新的文字檔案";
+"Creates a new untitled text document in Notepad." = "在 Notepad 中建立新的無標題文字文件。";
+"New Text File" = "新建文字檔案";

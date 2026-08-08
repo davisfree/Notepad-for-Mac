@@ -55,6 +55,11 @@ final class NPStatusBarView: NSView {
         didSet { updateLineColumnText() }
     }
 
+    /// 当前文档字符数（Win11 同款信息块，仅展示）
+    var characterCount: Int = 0 {
+        didSet { characterCountButton.updateTitle(NPStatusBarFormatter.characterCountText(characterCount)) }
+    }
+
     /// 当前缩放比例（1.0 = 100%）
     var zoomLevel: Double = 1.0 {
         didSet { zoomButton.updateTitle(NPStatusBarFormatter.zoomText(zoomLevel)) }
@@ -79,12 +84,14 @@ final class NPStatusBarView: NSView {
 
     /// 行列信息块（左对齐）
     private let lineColumnButton = NPStatusBarButton(frame: .zero)
-    /// 缩放信息块
-    private let zoomButton = NPStatusBarButton(frame: .zero)
-    /// 换行符信息块
-    private let lineEndingButton = NPStatusBarButton(frame: .zero)
-    /// 编码信息块（右对齐）
-    private let encodingButton = NPStatusBarButton(frame: .zero)
+    /// 字符数信息块（左对齐组，紧跟 Ln/Col；Win11 同款，仅展示不可点击）
+    private let characterCountButton = NPStatusBarButton(frame: .zero)
+    /// 缩放信息块（右对齐；暴露给控制器作为弹出菜单锚点）
+    let zoomButton = NPStatusBarButton(frame: .zero)
+    /// 换行符信息块（右对齐；暴露给控制器作为弹出菜单锚点）
+    let lineEndingButton = NPStatusBarButton(frame: .zero)
+    /// 编码信息块（右对齐；暴露给控制器作为弹出菜单锚点）
+    let encodingButton = NPStatusBarButton(frame: .zero)
 
     // MARK: - 初始化
 
@@ -120,7 +127,7 @@ final class NPStatusBarView: NSView {
             delegate.statusBarDidTapEncoding(self)
         }
 
-        // 弹性占位：Ln/Col 居左，其余信息块居右（02 §5.4）
+        // 弹性占位：Ln/Col 与字符数居左，其余信息块居右（02 §5.4）
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
@@ -131,6 +138,7 @@ final class NPStatusBarView: NSView {
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 0, right: 12) // 02 §4.3 状态栏内边距
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(lineColumnButton)
+        stack.addArrangedSubview(characterCountButton)
         stack.addArrangedSubview(spacer)
         stack.addArrangedSubview(zoomButton)
         stack.addArrangedSubview(lineEndingButton)
@@ -144,9 +152,22 @@ final class NPStatusBarView: NSView {
         ])
 
         updateLineColumnText()
+        characterCountButton.updateTitle(NPStatusBarFormatter.characterCountText(characterCount))
         zoomButton.updateTitle(NPStatusBarFormatter.zoomText(zoomLevel))
         lineEndingButton.updateTitle(lineEnding.displayName)
         updateEncodingText()
+    }
+
+    // MARK: - 菜单锚点
+
+    /// 在指定信息块按钮上方弹出菜单：菜单左边缘与按钮左边缘对齐，顶边贴状态栏上沿。
+    /// 坐标系原点在视图左下角，故 `y = bounds.height` 使菜单落在状态栏上方。
+    /// - Parameters:
+    ///   - menu: 菜单
+    ///   - button: 触发按钮
+    func showMenu(_ menu: NSMenu, alignedTo button: NPStatusBarButton) {
+        let frame = button.convert(button.bounds, to: self)
+        menu.popUp(positioning: nil, at: NSPoint(x: frame.minX, y: bounds.height), in: self)
     }
 
     // MARK: - 绘制

@@ -31,6 +31,14 @@ enum NPConstants {
         static let recentDocuments = 500
         /// Notepad → 服务（子菜单容器）
         static let services = 600
+        /// Notepad → 显示语言 → 跟随系统
+        static let languageSystem = 710
+        /// Notepad → 显示语言 → English
+        static let languageEnglish = 711
+        /// Notepad → 显示语言 → 简体中文
+        static let languageZhHans = 712
+        /// Notepad → 显示语言 → 繁體中文
+        static let languageZhHant = 713
     }
 
     // MARK: - 菜单标识

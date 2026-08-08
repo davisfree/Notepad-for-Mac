@@ -44,6 +44,7 @@ final class NPPreferencesTests: XCTestCase {
         XCTAssertEqual(sut.defaultLineEnding, .lf)
         XCTAssertTrue(sut.isStatusBarVisible)
         XCTAssertEqual(sut.defaultZoomLevel, 1.0)
+        XCTAssertEqual(sut.displayLanguage, .system)
     }
 
     /// 持久化往返：写入后新实例读取一致。
@@ -52,6 +53,7 @@ final class NPPreferencesTests: XCTestCase {
         sut.isWordWrapEnabled = false
         sut.defaultLineEnding = .crlf
         sut.defaultZoomLevel = 1.5
+        sut.displayLanguage = .english
         sut.lastWindowFrame = NSRect(x: 100, y: 200, width: 1024, height: 768)
 
         let reloaded = NPPreferences(defaults: testDefaults)
@@ -59,6 +61,7 @@ final class NPPreferencesTests: XCTestCase {
         XCTAssertFalse(reloaded.isWordWrapEnabled)
         XCTAssertEqual(reloaded.defaultLineEnding, .crlf)
         XCTAssertEqual(reloaded.defaultZoomLevel, 1.5)
+        XCTAssertEqual(reloaded.displayLanguage, .english)
         XCTAssertEqual(reloaded.lastWindowFrame, NSRect(x: 100, y: 200, width: 1024, height: 768))
     }
 
@@ -75,6 +78,7 @@ final class NPPreferencesTests: XCTestCase {
         sut.theme = .dark
         sut.isAutoSaveEnabled = false
         sut.defaultZoomLevel = 2.0
+        sut.displayLanguage = .traditionalChinese
 
         let data = try sut.export()
         let target = NPPreferences(defaults: testDefaults)
@@ -84,6 +88,7 @@ final class NPPreferencesTests: XCTestCase {
         XCTAssertEqual(target.theme, .dark)
         XCTAssertFalse(target.isAutoSaveEnabled)
         XCTAssertEqual(target.defaultZoomLevel, 2.0)
+        XCTAssertEqual(target.displayLanguage, .traditionalChinese)
     }
 
     /// 导出结构：字体为 {"family","size"}，编码为 rawValue，缩放为百分比。
@@ -119,8 +124,10 @@ final class NPPreferencesTests: XCTestCase {
     func testResetToDefaults() {
         sut.theme = .dark
         sut.defaultZoomLevel = 3.0
+        sut.displayLanguage = .english
         sut.resetToDefaults()
         XCTAssertEqual(sut.theme, .system)
         XCTAssertEqual(sut.defaultZoomLevel, 1.0)
+        XCTAssertEqual(sut.displayLanguage, .system)
     }
 }
