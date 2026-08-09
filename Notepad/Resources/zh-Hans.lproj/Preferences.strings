@@ -4,3 +4,23 @@
 "Preferences.General" = "通用";
 "Preferences.Editor" = "编辑器";
 "Preferences.Font" = "字体";
+
+/* 通用标签页 */
+"Preferences.General.DisplayLanguage" = "显示语言";
+"Preferences.General.Theme" = "主题";
+"Preferences.General.AutoSave" = "自动保存";
+"Preferences.General.ShowStatusBar" = "显示状态栏";
+
+/* 编辑器标签页 */
+"Preferences.Editor.ChooseFont" = "选择…";
+"Preferences.Editor.WordWrap" = "自动换行";
+"Preferences.Editor.DefaultEncoding" = "默认编码";
+"Preferences.Editor.DefaultLineEnding" = "默认换行符";
+"Preferences.Editor.DefaultZoom" = "默认缩放";
+
+/* 全部恢复默认 */
+"Preferences.ResetAll" = "全部恢复默认";
+"Preferences.ResetAll.Confirm.Title" = "全部恢复默认设置？";
+"Preferences.ResetAll.Confirm.Message" = "所有偏好设置将恢复为默认值。";
+"Preferences.ResetAll.Confirm.Reset" = "恢复默认";
+"Preferences.ResetAll.Confirm.Cancel" = "取消";

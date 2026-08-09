@@ -746,12 +746,15 @@ public final class NPBackupService {
     public func unregisterDocument(_ document: NPTextDocument)
 
     /// 恢复崩溃前的会话。
-    /// 必须包含从未保存的"无标题"文档及其光标位置（PRD FR-003）
+    /// 必须包含从未保存的"无标题"文档及其光标位置（PRD FR-003）。
+    /// 只返回有效记录：文件对完整、元数据可解码且未超 7 天保留期
     /// - Returns: 可恢复的备份项列表
     public func recoverableItems() -> [NPBackupItem]
 
-    /// 清理过期备份（保留 7 天）
-    public func cleanExpiredBackups()
+    /// 清理无效备份文件：删除目录中不属于 `validBackupIDs` 的一切文件
+    /// （超期备份、原子写入临时残留、孤儿单边文件、元数据损坏的记录）。
+    /// 启动时以 recoverableRecords() 的结果为白名单调用
+    public func pruneInvalidBackupFiles(keeping validBackupIDs: Set<UUID>)
 }
 
 /// 崩溃恢复项：描述一份可恢复的备份

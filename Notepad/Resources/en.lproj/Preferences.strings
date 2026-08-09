@@ -1,0 +1,26 @@
+/* 偏好设置界面（English） */
+
+"Preferences.Title" = "Settings";
+"Preferences.General" = "General";
+"Preferences.Editor" = "Editor";
+"Preferences.Font" = "Font";
+
+/* 通用标签页 */
+"Preferences.General.DisplayLanguage" = "Display Language";
+"Preferences.General.Theme" = "Theme";
+"Preferences.General.AutoSave" = "Auto Save";
+"Preferences.General.ShowStatusBar" = "Show Status Bar";
+
+/* 编辑器标签页 */
+"Preferences.Editor.ChooseFont" = "Choose…";
+"Preferences.Editor.WordWrap" = "Word Wrap";
+"Preferences.Editor.DefaultEncoding" = "Default Encoding";
+"Preferences.Editor.DefaultLineEnding" = "Default Line Ending";
+"Preferences.Editor.DefaultZoom" = "Default Zoom";
+
+/* 全部恢复默认 */
+"Preferences.ResetAll" = "Reset All to Defaults";
+"Preferences.ResetAll.Confirm.Title" = "Reset All Settings to Defaults?";
+"Preferences.ResetAll.Confirm.Message" = "All preferences will be restored to their default values.";
+"Preferences.ResetAll.Confirm.Reset" = "Reset";
+"Preferences.ResetAll.Confirm.Cancel" = "Cancel";

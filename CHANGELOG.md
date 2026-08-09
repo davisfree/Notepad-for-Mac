@@ -92,3 +92,5 @@
 
 ### Changed
 - AppDelegate 清理过期 TODO：状态栏显隐已由状态栏模块消费（04 §3.1）；偏好设置窗口仍为未接线的占位（04 §4.1，后续迭代项）
+- 备份缓存垃圾清理增强：`cleanExpiredBackups()` 退役，改为 `recoverableRecords()` 只返回有效记录（文件对完整、元数据可解码、未超 7 天保留期）+ 新增 `pruneInvalidBackupFiles(keeping:)` 删除目录中白名单外一切文件（原子写入 `*.sb-*` 临时残留、孤儿单边文件、损坏元数据、超期备份）；启动流程改为先加载有效记录再清掉其余；04 §5.3、05 UT-BACKUP-003 同步
+- 自动保存写回在用户目录遗留 `未命名.txt.sb-*` 临时文件：`writeBackToOriginal` 的沙盒原子写（`Data.write(.atomic)`）跨容器边界的临时文件无法回收；改为非原子写（崩溃安全本就由会话备份承载），不再产生 `.sb-` 垃圾

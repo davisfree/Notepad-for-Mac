@@ -104,7 +104,7 @@ final class NPTextView: NSTextView {
     /// - Parameter sender: 字体管理器
     override func changeFont(_ sender: Any?) {
         super.changeFont(sender)
-        // TODO: 同步 NPEditorView.baseFont 与已开窗口（缩放重应用会覆盖 typingAttributes，留待编辑器联动）
+        // 写回偏好后由 NPEditorView 的 preferencesDidChange 观察者同步各窗口 baseFont
         guard let selectedFont = (typingAttributes[.font] as? NSFont) ?? font else {
             return
         }

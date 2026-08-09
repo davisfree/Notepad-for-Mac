@@ -4,3 +4,23 @@
 "Preferences.General" = "一般";
 "Preferences.Editor" = "編輯器";
 "Preferences.Font" = "字體";
+
+/* 一般標籤頁 */
+"Preferences.General.DisplayLanguage" = "顯示語言";
+"Preferences.General.Theme" = "主題";
+"Preferences.General.AutoSave" = "自動儲存";
+"Preferences.General.ShowStatusBar" = "顯示狀態列";
+
+/* 編輯器標籤頁 */
+"Preferences.Editor.ChooseFont" = "選擇…";
+"Preferences.Editor.WordWrap" = "自動換行";
+"Preferences.Editor.DefaultEncoding" = "預設編碼";
+"Preferences.Editor.DefaultLineEnding" = "預設換行符號";
+"Preferences.Editor.DefaultZoom" = "預設縮放";
+
+/* 全部回復預設值 */
+"Preferences.ResetAll" = "全部回復預設值";
+"Preferences.ResetAll.Confirm.Title" = "全部回復預設設定？";
+"Preferences.ResetAll.Confirm.Message" = "所有偏好設定將回復為預設值。";
+"Preferences.ResetAll.Confirm.Reset" = "回復預設值";
+"Preferences.ResetAll.Confirm.Cancel" = "取消";

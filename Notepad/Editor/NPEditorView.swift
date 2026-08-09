@@ -44,6 +44,8 @@ final class NPEditorView: NSView {
     private var storedZoomLevel: Double = 1.0
     /// 当前高亮的匹配范围（用于下次高亮前清除）
     private var highlightedRanges: [NSRange] = []
+    /// 偏好变更通知观察者令牌（字体等全局项变化时同步已开窗口）
+    private var preferencesObserver: NSObjectProtocol?
 
     // MARK: - 查找替换栏状态
 
@@ -175,6 +177,26 @@ final class NPEditorView: NSView {
         applyWordWrap()
         applyEffectiveFont()
         configureGoToLineController()
+        observePreferences()
+    }
+
+    deinit {
+        if let preferencesObserver {
+            NotificationCenter.default.removeObserver(preferencesObserver)
+        }
+    }
+
+    /// 订阅全局偏好变更：字体在偏好面板修改后同步到已开窗口（缩放系数保持不变）。
+    private func observePreferences() {
+        preferencesObserver = NotificationCenter.default.addObserver(
+            forName: NPNotificationNames.preferencesDidChange,
+            object: NPPreferences.shared,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.font = NPPreferences.shared.font
+            }
+        }
     }
 
     /// 显式装配完整文本系统并创建底层文本视图。

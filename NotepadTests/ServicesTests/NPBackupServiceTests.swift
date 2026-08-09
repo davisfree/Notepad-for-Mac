@@ -92,26 +92,80 @@ final class NPBackupServiceTests: XCTestCase {
         sut.unregisterDocument(document)
     }
 
-    /// UT-BACKUP-003：过期清理 —— 7 天前的备份被清理且不出现在 recoverableItems。
-    func testExpiredBackupCleaned() throws {
-        let expiredID = UUID()
+    /// 写入元数据文件（测试辅助）。
+    private func writeMetadata(backupID: UUID, timestamp: TimeInterval = Date().timeIntervalSince1970) throws {
         let metadata: [String: Any] = [
             "cursorPosition": 0,
             "encodingRawValue": String.Encoding.utf8.rawValue,
             "lineEndingRawValue": "\n",
             "windowGroupID": UUID().uuidString,
             "tabIndex": 0,
-            "timestamp": Date().timeIntervalSince1970 - 8 * 24 * 60 * 60,
+            "timestamp": timestamp,
         ]
         try JSONSerialization.data(withJSONObject: metadata)
-            .write(to: backupDirectory.appendingPathComponent("\(expiredID.uuidString).json"))
+            .write(to: backupDirectory.appendingPathComponent("\(backupID.uuidString).json"))
+    }
+
+    /// UT-BACKUP-003：过期清理 —— 7 天前的备份不出现在 recoverableItems，且 prune 后文件被删除。
+    func testExpiredBackupCleaned() throws {
+        let expiredID = UUID()
+        try writeMetadata(backupID: expiredID,
+                          timestamp: Date().timeIntervalSince1970 - 8 * 24 * 60 * 60)
         try "expired".write(to: backupDirectory.appendingPathComponent("\(expiredID.uuidString).txt"),
                             atomically: true, encoding: .utf8)
-        XCTAssertEqual(sut.recoverableItems().count, 1)
 
-        sut.cleanExpiredBackups()
-        XCTAssertTrue(sut.recoverableItems().isEmpty)
+        XCTAssertTrue(sut.recoverableItems().isEmpty, "过期备份不应作为有效记录加载")
+        sut.pruneInvalidBackupFiles(keeping: [])
         XCTAssertFalse(backupFiles().contains { $0.contains(expiredID.uuidString) })
+    }
+
+    /// 原子写入临时残留（`*.sb-*` 等不匹配 `<UUID>.txt/.json` 的文件名）被 prune 清除。
+    func testPruneRemovesTemporaryResidue() throws {
+        let residueName = "\(UUID().uuidString).txt.sb-d27de1f8-dWETIK"
+        try "residue".write(to: backupDirectory.appendingPathComponent(residueName),
+                            atomically: true, encoding: .utf8)
+        sut.pruneInvalidBackupFiles(keeping: [])
+        XCTAssertFalse(backupFiles().contains(residueName))
+    }
+
+    /// 孤儿 `.json`（无对应 `.txt`）：不作为有效记录，prune 后删除。
+    func testPruneRemovesOrphanMetadata() throws {
+        let orphanID = UUID()
+        try writeMetadata(backupID: orphanID)
+        XCTAssertTrue(sut.recoverableItems().isEmpty)
+        sut.pruneInvalidBackupFiles(keeping: [])
+        XCTAssertTrue(backupFiles().isEmpty)
+    }
+
+    /// 孤儿 `.txt`（无对应 `.json`）被 prune 清除。
+    func testPruneRemovesOrphanContent() throws {
+        try "orphan".write(to: backupDirectory.appendingPathComponent("\(UUID().uuidString).txt"),
+                           atomically: true, encoding: .utf8)
+        sut.pruneInvalidBackupFiles(keeping: [])
+        XCTAssertTrue(backupFiles().isEmpty)
+    }
+
+    /// 元数据损坏（非法 JSON）的记录：不作为有效记录，prune 后文件对删除。
+    func testPruneRemovesCorruptMetadata() throws {
+        let corruptID = UUID()
+        try "not json".write(to: backupDirectory.appendingPathComponent("\(corruptID.uuidString).json"),
+                             atomically: true, encoding: .utf8)
+        try "content".write(to: backupDirectory.appendingPathComponent("\(corruptID.uuidString).txt"),
+                            atomically: true, encoding: .utf8)
+        XCTAssertTrue(sut.recoverableItems().isEmpty)
+        sut.pruneInvalidBackupFiles(keeping: [])
+        XCTAssertTrue(backupFiles().isEmpty)
+    }
+
+    /// 有效文件对：加载为有效记录，prune（以其标识为白名单）后保留。
+    func testPruneKeepsValidPair() throws {
+        let validID = UUID()
+        try writeMetadata(backupID: validID)
+        try "valid".write(to: backupDirectory.appendingPathComponent("\(validID.uuidString).txt"),
+                          atomically: true, encoding: .utf8)
+        XCTAssertEqual(sut.recoverableItems().count, 1)
+        sut.pruneInvalidBackupFiles(keeping: [validID])
+        XCTAssertEqual(backupFiles().count, 2)
     }
 
     /// 正常关闭（unregister）删除备份文件。

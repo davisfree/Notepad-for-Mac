@@ -250,14 +250,17 @@ final class NPBackupService {
     }
 
     /// 读取全部有效备份记录（含会话归属，供启动恢复分组）。
+    /// "有效"= 文件对完整、元数据可解码且未超保留期（7 天）。
     /// - Returns: 备份记录列表（按窗口组、标签序、时间戳排序）
     func recoverableRecords() -> [NPBackupRecord] {
         guard let files = try? fileManager.contentsOfDirectory(atPath: backupDirectory.path) else {
             return []
         }
+        let cutoff = Date().timeIntervalSince1970 - TimeInterval(Self.retentionDays * 24 * 60 * 60)
         var records: [NPBackupRecord] = []
         for file in files where file.hasSuffix(".\(Self.metadataFileExtension)") {
-            guard let record = loadRecord(metadataFileName: file) else {
+            guard let record = loadRecord(metadataFileName: file),
+                  record.timestamp >= cutoff else {
                 continue
             }
             records.append(record)
@@ -273,18 +276,25 @@ final class NPBackupService {
         }
     }
 
-    /// 清理过期备份（保留 7 天）。
-    func cleanExpiredBackups() {
+    /// 清理无效备份文件：删除目录中不属于 `validBackupIDs` 的一切文件。
+    ///
+    /// 覆盖四类垃圾：超期备份、原子写入临时残留（`*.sb-*` 等不匹配 `<UUID>.txt/.json` 的文件名）、
+    /// 孤儿单边文件（`.json` 缺 `.txt` 或反之）、元数据损坏的记录。
+    /// 典型用法：启动时以 `recoverableRecords()` 的结果为白名单调用，加载有效备份后清掉其余。
+    /// - Parameter validBackupIDs: 需保留的备份标识集合
+    func pruneInvalidBackupFiles(keeping validBackupIDs: Set<UUID>) {
         guard let files = try? fileManager.contentsOfDirectory(atPath: backupDirectory.path) else {
             return
         }
-        let cutoff = Date().timeIntervalSince1970 - TimeInterval(Self.retentionDays * 24 * 60 * 60)
-        for file in files where file.hasSuffix(".\(Self.metadataFileExtension)") {
-            guard let metadata = loadMetadata(metadataFileName: file),
-                  metadata.timestamp < cutoff else {
+        for file in files {
+            let name = (file as NSString).deletingPathExtension
+            let ext = (file as NSString).pathExtension
+            guard ext == Self.contentFileExtension || ext == Self.metadataFileExtension,
+                  let backupID = UUID(uuidString: name),
+                  validBackupIDs.contains(backupID) else {
+                try? fileManager.removeItem(at: backupDirectory.appendingPathComponent(file))
                 continue
             }
-            deleteBackupFiles(backupID: backupID(fromMetadataFileName: file))
         }
     }
 
@@ -377,7 +387,9 @@ final class NPBackupService {
         do {
             let data = try document.data(ofType: "public.plain-text")
             Task.detached(priority: .utility) {
-                try? data.write(to: fileURL, options: .atomic)
+                // 非原子写：沙盒下原子写会在用户目录遗留 `.sb-*` 临时文件；
+                // 崩溃安全本就由会话备份（<UUID>.txt）承载，写回无需原子保证
+                try? data.write(to: fileURL)
             }
             document.updateChangeCount(.changeCleared)
         } catch {
