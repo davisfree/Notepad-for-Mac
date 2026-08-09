@@ -50,4 +50,46 @@ final class NPDocumentController: NSDocumentController {
         openPanel.allowsOtherFileTypes = true
         return openPanel.runModal().rawValue
     }
+
+    /// 退出时跳过未保存文稿复查（用户规则 2：退出只缓存不提示）。
+    ///
+    /// 系统退出流程**先于** `applicationShouldTerminate` 发起未保存文稿复查
+    /// （探针实测时序：`reviewUnsavedDocuments` → `closeAllDocuments` →
+    /// 逐文档 `canClose` 保存面板），AppDelegate 的清脏在该复查之后才执行，
+    /// 无法拦截弹窗。此处先统一落盘待写内容（会话备份始终写，原文件写回仅自动保存 ON）
+    /// 并清脏，再走系统默认复查——此时无任何脏文档，`super` 既不会弹"审查未保存文稿"
+    /// 警报，`closeAllDocuments` 也不会逐文档弹保存面板。
+    /// 未保存状态由磁盘备份承载，下次启动经会话恢复还原并重新标脏。
+    /// - Parameters:
+    ///   - title: 警报标题（本实现不使用）
+    ///   - cancellable: 是否可取消（本实现不使用）
+    ///   - delegate: 复查完成回调委托
+    ///   - didReviewAllSelector: 复查完成回调选择器
+    ///   - contextInfo: 上下文
+    override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
+                                         didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        NPBackupService.shared.flushAllPendingWrites()
+        for document in documents {
+            document.updateChangeCount(.changeCleared)
+        }
+        super.reviewUnsavedDocuments(withAlertTitle: title, cancellable: cancellable, delegate: delegate,
+                                     didReviewAllSelector: didReviewAllSelector, contextInfo: contextInfo)
+    }
+
+    /// 关闭全部文档（退出流程兜底）：先落盘待写内容并清脏，再走系统关闭。
+    ///
+    /// `reviewUnsavedDocuments` 已拦截常规退出复查；此处兜底覆盖系统直接调用
+    /// `closeAllDocuments` 的路径（如登出/关机），避免对脏文档弹保存面板或
+    /// `NSDocument.close()` 的"保留文稿"对话框。
+    /// - Parameters:
+    ///   - delegate: 完成回调委托
+    ///   - didCloseAllSelector: 完成回调选择器
+    ///   - contextInfo: 上下文
+    override func closeAllDocuments(withDelegate delegate: Any?, didCloseAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        NPBackupService.shared.flushAllPendingWrites()
+        for document in documents {
+            document.updateChangeCount(.changeCleared)
+        }
+        super.closeAllDocuments(withDelegate: delegate, didCloseAllSelector: didCloseAllSelector, contextInfo: contextInfo)
+    }
 }

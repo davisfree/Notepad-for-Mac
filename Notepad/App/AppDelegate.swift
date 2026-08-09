@@ -84,14 +84,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NPShortcutService.shared.registerShortcuts()
     }
 
-    /// 退出行为（01 §3.5）：开关 ON 无确认退出（内容已在会话备份，备份保留供下次恢复）；
-    /// OFF 有未保存文档时逐窗口确认（顺序关闭，任一取消则中止退出）。
+    /// 退出行为（01 §3.5）：静默退出（用户规则 2）——内容已在会话备份，备份保留供下次恢复。
+    ///
+    /// 系统退出流程先于本方法发起未保存文稿复查，故对脏文档的拦截由
+    /// `NPDocumentController` 覆写的 `reviewUnsavedDocuments` / `closeAllDocuments`
+    /// 在更早阶段完成（先落盘 + 清脏，再走系统复查，此时无脏文档、不弹任何面板）。
+    /// 本方法保留同一套落盘 + 清脏作为兜底，并返回 `.terminateNow`。
+    /// 未保存状态由磁盘备份承载，下次启动经会话恢复还原并重新标脏。
     /// - Parameter sender: 应用
     /// - Returns: 终止答复
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // 静默退出（用户规则 2）：先落盘全部待写内容（会话备份始终写，原文件写回仅自动保存 ON），
-        // 再统一清脏——系统退出流程对脏文档的复查在代理返回后进行，此时已无脏文档可提示。
-        // 未保存状态由磁盘备份承载，下次启动经会话恢复还原并重新标脏
         NPBackupService.shared.flushAllPendingWrites()
         for document in NSDocumentController.shared.documents {
             document.updateChangeCount(.changeCleared)
