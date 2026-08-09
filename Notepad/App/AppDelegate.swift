@@ -97,7 +97,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameter sender: 应用
     /// - Returns: 终止答复
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 标记退出流程：此后若发生窗口关闭（登出/关机路径），关窗仍保留备份供会话恢复
+        NPBackupService.shared.markTerminating()
         NPBackupService.shared.flushAllPendingWrites()
+        // 退出清理：只保留当前打开标签的备份，删除历史残留（崩溃遗留/旧版本），
+        // 保证下次启动恢复的窗口数 = 退出时的窗口数，不随使用累积
+        NPBackupService.shared.pruneBackupsForQuit()
         for document in NSDocumentController.shared.documents {
             document.updateChangeCount(.changeCleared)
         }

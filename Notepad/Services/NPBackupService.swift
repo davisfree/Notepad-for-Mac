@@ -110,6 +110,10 @@ final class NPBackupService {
     /// 注册表（按文档对象标识）
     private var registrations: [ObjectIdentifier: Registration] = [:]
 
+    /// 是否处于退出流程（`markTerminating` 置位）。
+    /// 供关窗路径区分"用户手动关窗"（删除备份）与"退出流程关窗"（保留备份）。
+    private(set) var isTerminating = false
+
     // MARK: - 初始化
 
     /// 以默认备份目录创建（单例入口）。
@@ -192,7 +196,12 @@ final class NPBackupService {
         }
     }
 
-    /// 停止跟踪文档但**保留**备份文件（关窗/退出路径；备份是下次会话恢复的数据来源）。
+    /// 标记进入退出流程（退出钩子调用；此后关窗保留备份，供下次启动会话恢复）。
+    func markTerminating() {
+        isTerminating = true
+    }
+
+    /// 停止跟踪文档但**保留**备份文件（退出流程关窗路径；备份是下次会话恢复的数据来源）。
     ///
     /// 与 `unregisterDocument`（正常关闭标签，删除备份）相对。
     /// - Parameter document: 目标文档
@@ -273,6 +282,29 @@ final class NPBackupService {
                 return lhs.tabIndex < rhs.tabIndex
             }
             return lhs.timestamp < rhs.timestamp
+        }
+    }
+
+    /// 退出清理：保留当前仍打开文档（已注册标签）的备份，删除其余备份文件。
+    ///
+    /// 会话恢复的正确语义是"退出时仍打开的窗口/标签"。正常使用中关窗即删除备份
+    /// （见 `detachAllTabsForWindowClose`），退出时这里兜底清理崩溃残留、旧版本遗留
+    /// 等不在注册表中的备份，避免下次启动恢复出已关闭的窗口。
+    /// 注册表为空（如登出/关机流程已先行关闭窗口、文档全部摘除）时**不删除任何文件**，
+    /// 防止把退出时仍打开、但已由窗口关闭流程保留的备份误删。
+    func pruneBackupsForQuit() {
+        let activeIDs = Set(registrations.values.map { $0.backupID })
+        guard !activeIDs.isEmpty,
+              let files = try? fileManager.contentsOfDirectory(atPath: backupDirectory.path) else {
+            return
+        }
+        for file in files {
+            let name = (file as NSString).deletingPathExtension
+            guard let backupID = UUID(uuidString: name),
+                  activeIDs.contains(backupID) else {
+                try? fileManager.removeItem(at: backupDirectory.appendingPathComponent(file))
+                continue
+            }
         }
     }
 

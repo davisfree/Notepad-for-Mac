@@ -68,6 +68,7 @@ final class NPDocumentController: NSDocumentController {
     ///   - contextInfo: 上下文
     override func reviewUnsavedDocuments(withAlertTitle title: String?, cancellable: Bool, delegate: Any?,
                                          didReviewAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        NPBackupService.shared.markTerminating()
         NPBackupService.shared.flushAllPendingWrites()
         for document in documents {
             document.updateChangeCount(.changeCleared)
@@ -86,7 +87,12 @@ final class NPDocumentController: NSDocumentController {
     ///   - didCloseAllSelector: 完成回调选择器
     ///   - contextInfo: 上下文
     override func closeAllDocuments(withDelegate delegate: Any?, didCloseAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+        NPBackupService.shared.markTerminating()
         NPBackupService.shared.flushAllPendingWrites()
+        // 退出清理：保留当前打开标签的备份，删除历史残留（须在窗口关闭、
+        // 文档从注册表摘除之前执行，否则注册表为空会误删全部备份），
+        // 保证下次启动恢复的窗口数 = 退出时的窗口数。
+        NPBackupService.shared.pruneBackupsForQuit()
         for document in documents {
             document.updateChangeCount(.changeCleared)
         }

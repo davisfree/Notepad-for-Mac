@@ -176,4 +176,39 @@ final class NPBackupServiceTests: XCTestCase {
         sut.unregisterDocument(document)
         XCTAssertTrue(backupFiles().isEmpty)
     }
+
+    /// 退出清理：只保留当前仍打开文档（已注册标签）的备份，删除历史关窗残留。
+    func testPruneForQuitKeepsOnlyActiveDocuments() throws {
+        let docA = NPTextDocument()
+        let docB = NPTextDocument()
+        sut.registerDocument(docA)
+        sut.registerDocument(docB)
+        XCTAssertTrue(waitFor { self.backupFiles().count == 4 }, "两个文档应各建立备份文件对")
+
+        // 历史关窗残留：未注册文档的备份（detachAllTabsForWindowClose 保留的）
+        let staleID = UUID()
+        try writeMetadata(backupID: staleID)
+        try "stale".write(to: backupDirectory.appendingPathComponent("\(staleID.uuidString).txt"),
+                          atomically: true, encoding: .utf8)
+        XCTAssertEqual(backupFiles().count, 6, "4 个活动文档文件 + 2 个残留文件")
+
+        sut.pruneBackupsForQuit()
+
+        XCTAssertFalse(backupFiles().contains { $0.contains(staleID.uuidString) },
+                       "关窗残留应被清理，避免下次启动恢复出已关窗口")
+        XCTAssertEqual(backupFiles().count, 4, "活动文档的备份须保留")
+        sut.unregisterDocument(docA)
+        sut.unregisterDocument(docB)
+    }
+
+    /// 退出清理：注册表为空（登出/关机已先行关闭窗口、文档全部摘除）时不删除任何文件，
+    /// 防止误删退出时仍打开、但已由窗口关闭流程保留的备份。
+    func testPruneForQuitSkipsWhenNoActiveDocuments() throws {
+        let staleID = UUID()
+        try writeMetadata(backupID: staleID)
+        try "stale".write(to: backupDirectory.appendingPathComponent("\(staleID.uuidString).txt"),
+                          atomically: true, encoding: .utf8)
+        sut.pruneBackupsForQuit()
+        XCTAssertEqual(backupFiles().count, 2, "注册表为空时应保守跳过，不删除任何备份")
+    }
 }

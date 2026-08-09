@@ -344,10 +344,12 @@ final class NPTabBarController: NPTabBarDelegate {
         removeTab(at: index)
     }
 
-    /// 关窗摘除全部标签（不关闭文档、不弹确认、保留备份与内存中的文档）。
+    /// 关窗摘除全部标签（不关闭文档、不弹确认）。
     ///
-    /// 用户规则 2 的完整语义：关窗后文档仍留在内存（Dock  reopen 时原样重建窗口），
-    /// 备份保留在磁盘（下次启动会话恢复）；脏状态保留以便重开时恢复圆点标记。
+    /// 用户规则 2 的完整语义:关窗后文档仍留在内存(Dock reopen 时原样重建窗口)。
+    /// **手动关窗删除备份**(与关标签一致):已关闭的窗口不属于下次启动的会话,
+    /// 保留只会让恢复窗口数随使用历史累积。退出流程中(service 已 `markTerminating`)
+    /// 则保留备份,供下次启动恢复退出时仍打开的标签。
     func detachAllTabsForWindowClose() {
         for entry in entries {
             let document = entry.document
@@ -356,7 +358,11 @@ final class NPTabBarController: NPTabBarDelegate {
             for windowController in document.windowControllers {
                 document.removeWindowController(windowController)
             }
-            NPBackupService.shared.detachDocumentPreservingBackup(document)
+            if NPBackupService.shared.isTerminating {
+                NPBackupService.shared.detachDocumentPreservingBackup(document)
+            } else {
+                NPBackupService.shared.unregisterDocument(document)
+            }
         }
         entries.removeAll()
         model.removeAll()
