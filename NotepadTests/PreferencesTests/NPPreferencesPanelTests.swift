@@ -125,6 +125,21 @@ final class NPPreferencesPanelTests: XCTestCase {
         XCTAssertEqual(UserDefaults.standard.stringArray(forKey: "AppleLanguages"), ["en"])
     }
 
+    /// 切回"跟随系统"移除此前写入的 `AppleLanguages` 覆盖，界面语言回落为系统语言。
+    func testSwitchToSystemRemovesAppleLanguagesOverride() throws {
+        selectItem(in: generalVC.languagePopup, rawValue: NPLanguage.english.rawValue)
+        generalVC.languageDidChange(generalVC.languagePopup)
+        XCTAssertEqual(UserDefaults.standard.stringArray(forKey: "AppleLanguages"), ["en"])
+
+        selectItem(in: generalVC.languagePopup, rawValue: NPLanguage.system.rawValue)
+        generalVC.languageDidChange(generalVC.languagePopup)
+        XCTAssertEqual(preferences.displayLanguage, .system)
+        // app 域覆盖键已移除：读回值回落为系统全局语言，而非残留的 ["en"]
+        let bundleID = try XCTUnwrap(Bundle.main.bundleIdentifier)
+        XCTAssertNil(UserDefaults.standard.persistentDomain(forName: bundleID)?["AppleLanguages"])
+        XCTAssertNotEqual(UserDefaults.standard.stringArray(forKey: "AppleLanguages"), ["en"])
+    }
+
     /// 编辑器页控件动作写回偏好并持久化到注入的 defaults。
     func testEditorControlsWriteBackAndPersist() {
         editorVC.wordWrapCheckbox.state = .off

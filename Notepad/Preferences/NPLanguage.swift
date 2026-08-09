@@ -61,7 +61,7 @@ extension NPLanguage {
 
     /// 应用显示语言：写偏好、同步 `AppleLanguages` 并提示"重启后生效"。
     ///
-    /// `.system` 无对应 `AppleLanguages` 值，不改动该键（与原应用菜单实现行为一致）。
+    /// `.system` 移除此前写入的 `AppleLanguages` 覆盖键，使界面语言回落为系统语言。
     /// - Parameters:
     ///   - language: 目标语言
     ///   - preferences: 偏好存储（测试注入独立 suite 的实例）
@@ -73,12 +73,15 @@ extension NPLanguage {
             return
         }
         preferences.displayLanguage = language
-        // 切换时同步写 AppleLanguages（启动时 AppDelegate.init 也会写一次，此处确保"立即重启"
+        // 切换时同步写/移除 AppleLanguages（启动时 AppDelegate.init 也会同步一次，此处确保"立即重启"
         // 的新进程在 Foundation 语言解析前就能读到新值，否则界面语言会比勾选晚一次重启生效）。
+        // `.system` 无覆盖值：移除此前写入的键，使界面语言回落为系统语言。
         if let languages = language.appleLanguagesValue {
             UserDefaults.standard.set(languages, forKey: "AppleLanguages")
-            UserDefaults.standard.synchronize() // 保证重启前落盘
+        } else {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         }
+        UserDefaults.standard.synchronize() // 保证重启前落盘
         guard let window else {
             return
         }
@@ -106,13 +109,26 @@ extension NPLanguage {
         }
     }
 
-    /// 经 `open` 重启应用（新进程接管后终止当前进程）。
+    /// 经 `open` 重启应用：以 `-n` 启动独立新实例，待启动请求提交完成后再终止当前进程。
+    ///
+    /// 不带 `-n` 时，`open` 在应用仍处于运行状态（退出流程尚未结束）的情况下会把请求
+    /// 路由到现有实例，表现为"退出了但没重启"；`-n` 强制创建新实例，避免该竞态。
+    /// 通过 `terminationHandler` 等 `open` 进程结束（LaunchServices 已提交启动请求）
+    /// 才终止当前进程，防止"先退出、新实例未启动"的窗口；`open` 启动失败则不退出。
     @MainActor
     private static func relaunchApplication() {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = [Bundle.main.bundleURL.path]
-        try? process.run()
-        NSApp.terminate(nil)
+        process.arguments = ["-n", Bundle.main.bundleURL.path]
+        process.terminationHandler = { _ in
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
+        do {
+            try process.run()
+        } catch {
+            // `open` 无法启动：保持当前进程运行，避免"退出不重启"
+        }
     }
 }

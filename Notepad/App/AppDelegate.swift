@@ -26,10 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 禁用 AppKit 窗口状态还原：坏/空的持久状态会抑制启动时的自动新建文档
         // （首次点击 Dock 图标无窗口），且会话恢复本就由 NPBackupService 自研（Phase 3，PRD FR-003）
         UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
-        // 显示语言覆盖：非"跟随系统"时写 AppleLanguages。必须早于任何本地化解析，
-        // 故置于 init（main 启动最早期）；切换后重启生效（AppleLanguages 由 Foundation 缓存）。
+        // 显示语言覆盖：非"跟随系统"时写 AppleLanguages；跟随系统时移除残留覆盖，
+        // 保证界面语言回落为系统语言。必须早于任何本地化解析，故置于 init（main 启动最早期）；
+        // 切换后重启生效（AppleLanguages 由 Foundation 缓存）。
         if let languages = NPPreferences.shared.displayLanguage.appleLanguagesValue {
             UserDefaults.standard.set(languages, forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         }
         // 首个创建的 NSDocumentController 实例会成为 shared controller，
         // 必须早于任何 NSDocumentController.shared 访问（见 NPDocumentController 注释）
