@@ -31,7 +31,7 @@
 
 | 浅色模式 | 深色模式 |
 | :---: | :---: |
-| ![浅色](docs/screenshots/light.png) | ![深色](docs/screenshots/dark.png) |
+| ![浅色](Docs/screenshots/light.png) | ![深色](Docs/screenshots/dark.png) |
 
 ## 功能特性
 

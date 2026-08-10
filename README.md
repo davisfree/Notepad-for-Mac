@@ -31,7 +31,7 @@ A single **Universal Binary** runs on both Apple Silicon and Intel Macs.
 
 | Light | Dark |
 | :---: | :---: |
-| ![Light](docs/screenshots/light.png) | ![Dark](docs/screenshots/dark.png) |
+| ![Light](Docs/screenshots/light.png) | ![Dark](Docs/screenshots/dark.png) |
 
 ## Features
 
