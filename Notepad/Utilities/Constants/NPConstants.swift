@@ -76,7 +76,7 @@ enum NPConstants {
             "public.html",
             "public.css",
             "public.script",
-            "com.microsoft.batch",
+            "com.microsoft.batch"
         ]
 
         /// 常见纯文本扩展名（系统可能将未知扩展名判定为 `public.data`，须按扩展名兜底）
@@ -88,7 +88,7 @@ enum NPConstants {
             "md", "markdown",
             "ini", "cfg", "conf", "env",
             "csv", "tsv", "yml", "yaml",
-            "gitignore", "editorconfig",
+            "gitignore", "editorconfig"
         ]
 
         /// 打开面板过滤用的完整类型列表（UTI + 扩展名混合，`NSOpenPanel.allowedFileTypes` 两者皆可）

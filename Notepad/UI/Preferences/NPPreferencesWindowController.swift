@@ -168,7 +168,7 @@ final class NPPreferencesWindowController: NSWindowController {
             resetButton.trailingAnchor.constraint(equalTo: detailContainerView.trailingAnchor,
                                                   constant: -16),
             resetButton.bottomAnchor.constraint(equalTo: detailContainerView.bottomAnchor,
-                                                constant: -12),
+                                                constant: -12)
         ])
 
         window?.contentViewController = splitViewController
@@ -193,7 +193,7 @@ final class NPPreferencesWindowController: NSWindowController {
             viewController.view.leadingAnchor.constraint(equalTo: detailContainerView.leadingAnchor),
             viewController.view.trailingAnchor.constraint(equalTo: detailContainerView.trailingAnchor),
             viewController.view.bottomAnchor.constraint(equalTo: detailContainerView.bottomAnchor,
-                                                        constant: -44), // 底部留出"全部恢复默认"行
+                                                        constant: -44) // 底部留出"全部恢复默认"行
         ])
         sidebarTableView.selectRowIndexes(IndexSet(integer: page.rawValue),
                                           byExtendingSelection: false)
@@ -315,7 +315,7 @@ private final class NPSidebarCellView: NSView {
             iconView.widthAnchor.constraint(equalToConstant: 18),
             label.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6)
         ])
     }
 

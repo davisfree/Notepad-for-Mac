@@ -11,9 +11,9 @@ import Combine
 
 /// 主题设置（PRD FR-013）。
 enum NPTheme: String, CaseIterable, Identifiable {
-    case light = "light"
-    case dark = "dark"
-    case system = "system"
+    case light
+    case dark
+    case system
 
     var id: String { rawValue }
 
@@ -196,7 +196,7 @@ final class NPPreferences: ObservableObject {
             "theme": theme.rawValue,
             "font": [
                 "family": font.familyName ?? font.fontName,
-                "size": Double(font.pointSize),
+                "size": Double(font.pointSize)
             ],
             "autoWrap": isWordWrapEnabled,
             "statusBar": isStatusBarVisible,
@@ -204,7 +204,7 @@ final class NPPreferences: ObservableObject {
             "defaultEncoding": Int(defaultEncoding.rawValue),
             "defaultLineEnding": defaultLineEnding.rawValue,
             "zoomLevel": defaultZoomLevel * 100.0,
-            "language": displayLanguage.rawValue,
+            "language": displayLanguage.rawValue
         ]
         return try JSONSerialization.data(withJSONObject: dictionary, options: [.prettyPrinted, .sortedKeys])
     }

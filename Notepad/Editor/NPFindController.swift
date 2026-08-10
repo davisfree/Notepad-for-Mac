@@ -12,10 +12,6 @@ import Foundation
 struct NPFindOptions: OptionSet {
     let rawValue: Int
 
-    init(rawValue: Int) {
-        self.rawValue = rawValue
-    }
-
     /// 区分大小写。**默认不设置（不区分大小写）**，与 Win11 Notepad 行为一致（PRD FR-004）
     static let caseSensitive = NPFindOptions(rawValue: 1 << 0)
     /// 到达文档末尾后从头继续

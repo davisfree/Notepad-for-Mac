@@ -130,7 +130,7 @@ enum NPWindowFactory {
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             stack.topAnchor.constraint(equalTo: container.topAnchor),
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            statusBar.heightAnchor.constraint(equalToConstant: NPStatusBarView.height),
+            statusBar.heightAnchor.constraint(equalToConstant: NPStatusBarView.height)
         ])
         return container
     }

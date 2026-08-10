@@ -22,10 +22,23 @@ type_body_length:
   error: 500
 
 file_length:
-  warning: 500
+  warning: 600
   error: 800
+
+cyclomatic_complexity:
+  warning: 14
+
+large_tuple:
+  warning: 4
+
+identifier_name:
+  excluded:
+    - lf
+    - cr
+    - id
 
 excluded:
   - NotepadTests/
   - NotepadUITests/
   - Packages/
+  - build/

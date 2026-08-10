@@ -140,16 +140,18 @@ enum NPMenuBuilder {
         NPMenuItemSpec(titleKey: "Menu.Edit", children: editMenuChildren),
         NPMenuItemSpec(titleKey: "Menu.Format", children: formatMenuChildren),
         NPMenuItemSpec(titleKey: "Menu.View", children: viewMenuChildren),
-        NPMenuItemSpec(titleKey: "Menu.Help", children: helpMenuChildren),
+        NPMenuItemSpec(titleKey: "Menu.Help", children: helpMenuChildren)
     ]
 
     /// Notepad 应用菜单（"检查更新…"仅直发/Homebrew 构建，03 §2.4）。
     private static let appMenuChildren: [NPMenuItemSpec] = {
         var items: [NPMenuItemSpec] = [
-            NPMenuItemSpec(titleKey: "Menu.App.About", actionName: "orderFrontStandardAboutPanel:", target: .application),
+            NPMenuItemSpec(titleKey: "Menu.App.About", actionName: "orderFrontStandardAboutPanel:",
+                           target: .application)
         ]
         #if !APP_STORE
-        items.append(NPMenuItemSpec(titleKey: "Menu.App.CheckUpdates", actionName: "checkForUpdates:", target: .appDelegate))
+        items.append(NPMenuItemSpec(titleKey: "Menu.App.CheckUpdates", actionName: "checkForUpdates:",
+                                    target: .appDelegate))
         #endif
         items.append(contentsOf: [
             NPMenuItemSpec(titleKey: "Menu.App.Preferences", keyEquivalent: ",", actionName: "showPreferences:",
@@ -162,7 +164,8 @@ enum NPMenuBuilder {
                            actionName: "hideOtherApplications:", target: .application),
             NPMenuItemSpec(titleKey: "Menu.App.ShowAll", actionName: "unhideAllApplications:", target: .application),
             .separator,
-            NPMenuItemSpec(titleKey: "Menu.App.Quit", keyEquivalent: "q", actionName: "terminate:", target: .application),
+            NPMenuItemSpec(titleKey: "Menu.App.Quit", keyEquivalent: "q", actionName: "terminate:",
+                           target: .application)
         ])
         return items
     }()
@@ -175,7 +178,7 @@ enum NPMenuBuilder {
         NPMenuItemSpec(titleKey: "Menu.File.Open", keyEquivalent: "o", actionName: "openDocumentAction:",
                        target: .appDelegate),
         NPMenuItemSpec(titleKey: "Menu.File.OpenRecent", tag: NPConstants.MenuTag.recentDocuments, children: [
-            NPMenuItemSpec(titleKey: "Menu.File.ClearRecent", actionName: "clearRecentDocuments:", target: .appDelegate),
+            NPMenuItemSpec(titleKey: "Menu.File.ClearRecent", actionName: "clearRecentDocuments:", target: .appDelegate)
         ]),
         .separator,
         NPMenuItemSpec(titleKey: "Menu.File.Save", keyEquivalent: "s", actionName: "saveDocument:"),
@@ -189,7 +192,7 @@ enum NPMenuBuilder {
         .separator,
         NPMenuItemSpec(titleKey: "Menu.File.CloseTab", keyEquivalent: "w", actionName: "closeCurrentTab:"),
         NPMenuItemSpec(titleKey: "Menu.File.CloseWindow", keyEquivalent: "w", keyModifiers: [.shift, .command],
-                       actionName: "closeWindowAction:"),
+                       actionName: "closeWindowAction:")
     ]
 
     /// 编辑菜单。
@@ -215,7 +218,7 @@ enum NPMenuBuilder {
         NPMenuItemSpec(titleKey: "Menu.Edit.Replace", keyEquivalent: "f", keyModifiers: [.option, .command],
                        actionName: "showReplaceBarAction:"),
         NPMenuItemSpec(titleKey: "Menu.Edit.GoToLine", keyEquivalent: "g", keyModifiers: [.control],
-                       actionName: "goToLineAction:"),
+                       actionName: "goToLineAction:")
     ]
 
     /// 格式菜单。
@@ -224,7 +227,8 @@ enum NPMenuBuilder {
                        actionName: "toggleWordWrap:", tag: NPConstants.MenuTag.wordWrap),
         .separator,
         // 字体…无快捷键，与 Win11 原版一致
-        NPMenuItemSpec(titleKey: "Menu.Format.Font", keyModifiers: [], actionName: "showFontPanel:", target: .appDelegate),
+        NPMenuItemSpec(titleKey: "Menu.Format.Font", keyModifiers: [], actionName: "showFontPanel:",
+                       target: .appDelegate)
     ]
 
     /// 视图菜单。
@@ -232,7 +236,7 @@ enum NPMenuBuilder {
         NPMenuItemSpec(titleKey: "Menu.View.Zoom", children: [
             NPMenuItemSpec(titleKey: "Menu.View.ZoomIn", keyEquivalent: "+", actionName: "zoomInAction:"),
             NPMenuItemSpec(titleKey: "Menu.View.ZoomOut", keyEquivalent: "-", actionName: "zoomOutAction:"),
-            NPMenuItemSpec(titleKey: "Menu.View.ZoomReset", keyEquivalent: "0", actionName: "resetZoomAction:"),
+            NPMenuItemSpec(titleKey: "Menu.View.ZoomReset", keyEquivalent: "0", actionName: "resetZoomAction:")
         ]),
         .separator,
         NPMenuItemSpec(titleKey: "Menu.View.NextTab", keyEquivalent: "]", keyModifiers: [.shift, .command],
@@ -249,16 +253,16 @@ enum NPMenuBuilder {
             NPMenuItemSpec(titleKey: "Menu.View.ThemeDark", actionName: "setThemeDark:", target: .appDelegate,
                            tag: NPConstants.MenuTag.themeDark),
             NPMenuItemSpec(titleKey: "Menu.View.ThemeSystem", actionName: "setThemeSystem:", target: .appDelegate,
-                           tag: NPConstants.MenuTag.themeSystem),
+                           tag: NPConstants.MenuTag.themeSystem)
         ]),
         .separator,
         NPMenuItemSpec(titleKey: "Menu.View.AlwaysOnTop", actionName: "toggleAlwaysOnTop:", target: .appDelegate,
-                       tag: NPConstants.MenuTag.alwaysOnTop),
+                       tag: NPConstants.MenuTag.alwaysOnTop)
     ]
 
     /// 帮助菜单。
     private static let helpMenuChildren: [NPMenuItemSpec] = [
         NPMenuItemSpec(titleKey: "Menu.Help.ViewHelp", actionName: "showHelp:", target: .application),
-        NPMenuItemSpec(titleKey: "Menu.Help.SendFeedback", actionName: "sendFeedback:", target: .appDelegate),
+        NPMenuItemSpec(titleKey: "Menu.Help.SendFeedback", actionName: "sendFeedback:", target: .appDelegate)
     ]
 }

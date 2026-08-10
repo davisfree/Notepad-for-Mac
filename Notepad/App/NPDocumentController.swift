@@ -86,7 +86,9 @@ final class NPDocumentController: NSDocumentController {
     ///   - delegate: 完成回调委托
     ///   - didCloseAllSelector: 完成回调选择器
     ///   - contextInfo: 上下文
-    override func closeAllDocuments(withDelegate delegate: Any?, didCloseAllSelector: Selector?, contextInfo: UnsafeMutableRawPointer?) {
+    override func closeAllDocuments(withDelegate delegate: Any?,
+                                    didCloseAllSelector: Selector?,
+                                    contextInfo: UnsafeMutableRawPointer?) {
         NPBackupService.shared.markTerminating()
         NPBackupService.shared.flushAllPendingWrites()
         // 退出清理：保留当前打开标签的备份，删除历史残留（须在窗口关闭、
@@ -96,6 +98,8 @@ final class NPDocumentController: NSDocumentController {
         for document in documents {
             document.updateChangeCount(.changeCleared)
         }
-        super.closeAllDocuments(withDelegate: delegate, didCloseAllSelector: didCloseAllSelector, contextInfo: contextInfo)
+        super.closeAllDocuments(withDelegate: delegate,
+                                didCloseAllSelector: didCloseAllSelector,
+                                contextInfo: contextInfo)
     }
 }

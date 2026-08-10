@@ -249,11 +249,11 @@ final class NPTabBarView: NSView {
         let width = min(max(bounds.width / CGFloat(tabViews.count), NPTabItemView.minimumWidth),
                         NPTabItemView.maximumWidth)
         let cardHeight = bounds.height - NPTabItemView.cardVerticalInset * 2.0
-        var x: CGFloat = Self.barLeadingInset
+        var xPosition: CGFloat = Self.barLeadingInset
         for tabView in tabViews {
-            tabView.frame = NSRect(x: x, y: NPTabItemView.cardVerticalInset,
+            tabView.frame = NSRect(x: xPosition, y: NPTabItemView.cardVerticalInset,
                                    width: width - NPTabItemView.cardSpacing, height: cardHeight)
-            x += width
+            xPosition += width
         }
         needsDisplay = true
     }
@@ -278,8 +278,8 @@ final class NPTabBarView: NSView {
         NSRect(x: 0, y: 0, width: bounds.width, height: 1).fill()
         // 拖拽插入指示线（2pt，系统强调色）
         if let insertIndex = dragState?.insertIndex, dragState?.isDragOut == false {
-            let x = insertionX(for: insertIndex)
-            let indicatorRect = NSRect(x: x - 1, y: 4, width: 2, height: bounds.height - 8)
+            let xPosition = insertionX(for: insertIndex)
+            let indicatorRect = NSRect(x: xPosition - 1, y: 4, width: 2, height: bounds.height - 8)
             NSColor.controlAccentColor.setFill()
             indicatorRect.fill()
         }

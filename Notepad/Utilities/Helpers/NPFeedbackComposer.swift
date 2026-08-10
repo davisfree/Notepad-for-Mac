@@ -33,7 +33,7 @@ enum NPFeedbackComposer {
         components.path = recipient
         components.queryItems = [
             URLQueryItem(name: "subject", value: subject),
-            URLQueryItem(name: "body", value: body),
+            URLQueryItem(name: "body", value: body)
         ]
         return components.url
     }

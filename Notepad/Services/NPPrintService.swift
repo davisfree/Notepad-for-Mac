@@ -53,7 +53,7 @@ enum NPPrintPaginator {
         let textStorage = NSTextStorage(string: text, attributes: [
             .font: font,
             // 打印一律黑字白底（不跟随编辑器主题色）
-            .foregroundColor: NSColor.black,
+            .foregroundColor: NSColor.black
         ])
         let layoutManager = NSLayoutManager()
         textStorage.addLayoutManager(layoutManager)
@@ -169,7 +169,7 @@ final class NPPrintTextView: NSView {
         let pageOrigin = rectForPage(page).origin
         let captionAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: Self.headerFooterFontSize),
-            .foregroundColor: NSColor.black,
+            .foregroundColor: NSColor.black
         ]
 
         // 页眉：文件名居中（Win11 默认页眉）

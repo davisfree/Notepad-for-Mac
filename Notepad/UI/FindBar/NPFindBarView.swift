@@ -179,7 +179,7 @@ final class NPFindBarView: NSView {
             // 替换输入框与查找输入框等宽
             replaceField.widthAnchor.constraint(equalTo: findField.widthAnchor),
             // 替换行缩进跟随折叠箭头实际宽度
-            replaceIndentSpacer.widthAnchor.constraint(equalTo: toggleReplaceButton.widthAnchor),
+            replaceIndentSpacer.widthAnchor.constraint(equalTo: toggleReplaceButton.widthAnchor)
         ])
     }
 

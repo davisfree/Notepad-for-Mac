@@ -60,7 +60,7 @@ final class NPStatusBarButton: NSButton {
         currentText = text
         attributedTitle = NSAttributedString(string: text, attributes: [
             .font: NSFont.systemFont(ofSize: Self.fontSize),
-            .foregroundColor: NPColorPalette.statusBarText,
+            .foregroundColor: NPColorPalette.statusBarText
         ])
     }
 

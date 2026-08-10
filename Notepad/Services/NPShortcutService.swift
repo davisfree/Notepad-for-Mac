@@ -101,7 +101,7 @@ struct NPAppShortcuts: AppShortcutsProvider {
             intent: NPOpenFileIntent(),
             phrases: [
                 "Open file with \(.applicationName)",
-                "用 \(.applicationName) 打开文件",
+                "用 \(.applicationName) 打开文件"
             ],
             shortTitle: "Open File",
             systemImageName: "doc.text"
@@ -110,7 +110,7 @@ struct NPAppShortcuts: AppShortcutsProvider {
             intent: NPCreateTextFileIntent(),
             phrases: [
                 "Create text file with \(.applicationName)",
-                "用 \(.applicationName) 创建新文本文件",
+                "用 \(.applicationName) 创建新文本文件"
             ],
             shortTitle: "New Text File",
             systemImageName: "doc.badge.plus"

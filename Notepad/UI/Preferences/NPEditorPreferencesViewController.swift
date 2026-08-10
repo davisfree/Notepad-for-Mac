@@ -22,7 +22,7 @@ final class NPEditorPreferencesViewController: NSViewController {
         ("100%", 1.0),
         ("125%", 1.25),
         ("150%", 1.5),
-        ("200%", 2.0),
+        ("200%", 2.0)
     ]
 
     /// 缩放预设匹配容差（浮点比较）
@@ -239,7 +239,7 @@ final class NPEditorPreferencesViewController: NSViewController {
             [Self.makeLabel(Self.localized("Preferences.Editor.DefaultLineEnding",
                                            comment: "编辑器：默认换行符")), lineEndingPopup],
             [Self.makeLabel(Self.localized("Preferences.Editor.DefaultZoom",
-                                           comment: "编辑器：默认缩放")), zoomPopup],
+                                           comment: "编辑器：默认缩放")), zoomPopup]
         ])
         grid.column(at: 0).xPlacement = .trailing
         // 逐行垂直居中：默认基线对齐会让标签相对右侧控件偏高
@@ -257,7 +257,7 @@ final class NPEditorPreferencesViewController: NSViewController {
             grid.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -20),
             encodingPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
             lineEndingPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
-            zoomPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
+            zoomPopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200)
         ])
         self.grid = grid
     }

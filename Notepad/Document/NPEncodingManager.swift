@@ -52,10 +52,6 @@ struct NPDefaultEncodingDetector: NPEncodingDetector {
     /// UTF-32 BE BOM
     private static let utf32BigEndianBOM: [UInt8] = [0x00, 0x00, 0xFE, 0xFF]
 
-    // MARK: - 初始化
-
-    init() {}
-
     // MARK: - NPEncodingDetector
 
     /// 检测原始数据的编码（两阶段：BOM → 内容启发式）。
@@ -339,7 +335,7 @@ final class NPEncodingManager {
             .utf32BigEndian,
             .windowsCP1252,
             .gb18030,
-            .big5,
+            .big5
         ]
     }
 

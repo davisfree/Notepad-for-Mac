@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
         NPShortcutService.shared.createDocumentHandler = { [weak self] in
-            guard let document = try? self?.makeTrackedUntitledDocument() ?? nil else {
+            guard let document = try? self?.makeTrackedUntitledDocument() else {
                 return
             }
             NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document)

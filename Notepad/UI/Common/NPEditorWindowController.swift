@@ -98,7 +98,9 @@ final class NPEditorWindowController: NSWindowController {
     /// - Parameter sender: 菜单项
     @objc func closeCurrentTab(_ sender: Any?) {
         guard let selectedEntry = tabBarController.selectedEntry,
-              let index = tabBarController.entries.firstIndex(where: { $0.identifier == selectedEntry.identifier }) else {
+              let index = tabBarController.entries.firstIndex(where: {
+                  $0.identifier == selectedEntry.identifier
+              }) else {
             return
         }
         tabBarController.requestCloseTab(at: index)
@@ -167,7 +169,7 @@ final class NPEditorWindowController: NSWindowController {
             stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             stack.topAnchor.constraint(equalTo: contentView.topAnchor),
             stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            tabBarView.heightAnchor.constraint(equalToConstant: NPTabBarView.height),
+            tabBarView.heightAnchor.constraint(equalToConstant: NPTabBarView.height)
         ])
     }
 
@@ -207,7 +209,7 @@ final class NPEditorWindowController: NSWindowController {
                 view.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
                 view.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
                 view.topAnchor.constraint(equalTo: contentContainer.topAnchor),
-                view.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
+                view.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor)
             ])
         }
         // document 指向当前标签文档：保存面板/关闭确认/响应链 action 随之指向正确文档。
@@ -243,7 +245,7 @@ extension NPEditorWindowController: NSWindowDelegate {    /// 窗口关闭兜底
     /// - Parameter sender: 窗口
     /// - Returns: 是否允许立即关闭
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard tabBarController.count > 0, !isClosingAllTabs else {
+        guard !tabBarController.entries.isEmpty, !isClosingAllTabs else {
             return true
         }
         isClosingAllTabs = true

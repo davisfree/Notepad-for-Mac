@@ -162,7 +162,7 @@ final class NPGeneralPreferencesViewController: NSViewController {
             [Self.makeLabel(Self.localized("Preferences.General.Theme",
                                            comment: "通用：主题")), themePopup],
             [NSGridCell.emptyContentView, autoSaveCheckbox],
-            [NSGridCell.emptyContentView, statusBarCheckbox],
+            [NSGridCell.emptyContentView, statusBarCheckbox]
         ])
         grid.column(at: 0).xPlacement = .trailing
         // 逐行垂直居中：默认基线对齐会让标签相对右侧控件偏高
@@ -179,7 +179,7 @@ final class NPGeneralPreferencesViewController: NSViewController {
             grid.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             grid.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -20),
             languagePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
-            themePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
+            themePopup.widthAnchor.constraint(greaterThanOrEqualToConstant: 200)
         ])
         self.grid = grid
     }

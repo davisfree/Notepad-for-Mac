@@ -22,7 +22,7 @@ final class NPStatusBarController: NPStatusBarDelegate {
         ("100%", 1.0),
         ("125%", 1.25),
         ("150%", 1.5),
-        ("200%", 2.0),
+        ("200%", 2.0)
     ]
 
     /// 缩放预设匹配容差（浮点比较）

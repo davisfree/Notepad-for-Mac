@@ -85,7 +85,7 @@ final class NPTextView: NSTextView {
         // 选中高亮固定 Win11 蓝（不使用系统语义色，其默认为灰色，见 02 §2.3 注意）
         selectedTextAttributes = [
             .backgroundColor: NPColorPalette.selectionBackground,
-            .foregroundColor: NPColorPalette.selectionText,
+            .foregroundColor: NPColorPalette.selectionText
         ]
         typingAttributes[.foregroundColor] = NPColorPalette.editorText
         // 纯文本编辑器关闭连字（02 §3.1）

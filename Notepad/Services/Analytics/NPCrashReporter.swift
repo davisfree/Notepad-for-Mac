@@ -27,7 +27,7 @@ enum NPCrashSanitizer {
             // 用户主目录及其下全部子路径（escapedPattern 处理元字符，如 `.mac` 中的点）
             NSRegularExpression.escapedPattern(for: NSHomeDirectory()),
             // 临时目录（现代 macOS 位于主目录之外时仍能命中）
-            NSRegularExpression.escapedPattern(for: NSTemporaryDirectory()),
+            NSRegularExpression.escapedPattern(for: NSTemporaryDirectory())
         ]
     }
 

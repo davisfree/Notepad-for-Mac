@@ -42,7 +42,7 @@ extension NPEditorWindowController: NSTouchBarDelegate {
         TouchBarIdentifier.copy,
         TouchBarIdentifier.paste,
         TouchBarIdentifier.undo,
-        TouchBarIdentifier.redo,
+        TouchBarIdentifier.redo
     ]
 
     // MARK: - 装配
@@ -60,7 +60,8 @@ extension NPEditorWindowController: NSTouchBarDelegate {
     ///   - touchBar: Touch Bar
     ///   - identifier: 项标识
     /// - Returns: Touch Bar 项
-    func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+    func touchBar(_ touchBar: NSTouchBar,
+                  makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         switch identifier {
         case TouchBarIdentifier.new:
             return makeButtonItem(identifier, symbol: "doc.badge.plus", accessibilityKey: "Menu.File.NewWindow",

@@ -152,17 +152,6 @@ final class NPTextDocument: NSDocument {
         return super.prepareSavePanel(savePanel)
     }
 
-    // MARK: - 自动保存
-
-    /// 自动保存（当前委托系统默认实现；文档级自动保存开关见 `01_TECH_SPEC.md` 3.5，后续迭代接入）。
-    /// - Parameters:
-    ///   - implicitlyCancellable: 是否可隐式取消
-    ///   - completionHandler: 完成回调
-    override func autosave(withImplicitCancellability implicitlyCancellable: Bool,
-                           completionHandler: @escaping (Error?) -> Void) {
-        super.autosave(withImplicitCancellability: implicitlyCancellable, completionHandler: completionHandler)
-    }
-
     // MARK: - 窗口
 
     /// 窗口装配工厂注入点。
