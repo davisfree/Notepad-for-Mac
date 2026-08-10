@@ -2,6 +2,22 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.0.1] - 2026-08-09
+
+### Added
+- 偏好设置窗口（⌘,）：`NPPreferencesWindowController` + 通用/编辑器偏好面板，字体等全局项变更经 `preferencesDidChange` 通知实时同步已开窗口
+- 新增 `NPLanguage` 语言模型及偏好面板/语言切换相关测试
+
+### Changed
+- 界面语言切换迁移至偏好面板（`NPLanguage.apply`，重启后生效），移除"显示语言"子菜单
+- `NPBackupService` 备份缓存垃圾清理增强：`recoverableRecords` 只返回有效记录，新增 `pruneInvalidBackupFiles(keeping:)` 清理超期/临时残留/孤儿/损坏文件；`writeBackToOriginal` 改非原子写，消除沙盒原子写在用户目录遗留的 `.sb-*` 临时文件
+- 工程适配 Xcode 26：测试目标启用 `GENERATE_INFOPLIST_FILE`，解除与 App 目标的依赖循环；AppKit 相关测试类标注 `@MainActor`（Swift 6 严格并发）
+
+### Fixed
+- 修复退出弹保存提示：退出流程先落盘会话备份并统一清脏，不再弹"审查未保存文稿"警报与逐文档保存面板（未保存状态由磁盘备份承载，下次启动经会话恢复还原并重新标脏）
+- 修复界面显示语言切换后重启无效、跟随系统不生效的问题
+- 修复重启后窗口数累积：关窗即删备份、退出时清理残留
+
 ## [1.0.0] - 2026-08-07
 
 ### Added
