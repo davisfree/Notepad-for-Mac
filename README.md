@@ -1,8 +1,7 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="Notepad for macOS">
+  <img src="Docs/images/icon.png" width="128" alt="Notepad for Mac">
 </p>
-
-<h1 align="center">Notepad for macOS</h1>
+<h1 align="center">Notepad for Mac</h1>
 
 <p align="center">
   A native macOS text editor that faithfully replicates the <strong>Windows 11 Notepad</strong> experience.

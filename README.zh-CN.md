@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="128" alt="Notepad for macOS">
+  <img src="Docs/images/icon.png" width="128" alt="Notepad for macOS">
 </p>
 
 <h1 align="center">Notepad for macOS</h1>
