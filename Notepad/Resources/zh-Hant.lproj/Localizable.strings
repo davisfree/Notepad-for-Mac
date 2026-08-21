@@ -81,6 +81,10 @@
 "Menu.Help.ViewHelp" = "查看輔助說明";
 "Menu.Help.SendFeedback" = "傳送意見反應…";
 
+/* 輔助說明視窗 */
+"Help.Window.Title" = "Notepad 輔助說明";
+"Help.Unavailable" = "輔助說明內容無法使用。";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
 "StatusBar.CharacterCount" = "%@ 個字元";

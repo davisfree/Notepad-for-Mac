@@ -1,8 +1,7 @@
 <p align="center">
   <img src="Docs/images/icon.png" width="128" alt="Notepad for macOS">
 </p>
-
-<h1 align="center">Notepad for macOS</h1>
+<h1 align="center">Notepad for Mac</h1>
 
 <p align="center">
   原生 macOS 文本编辑器，1:1 复刻 <strong>Windows 11 记事本</strong>的使用体验。
@@ -142,4 +141,4 @@ make release  # 未签名 DMG（Scripts/release.sh --unsigned）
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 Notepad for macOS Contributors
+[MIT](LICENSE) © 2026 Notepad for Mac Contributors

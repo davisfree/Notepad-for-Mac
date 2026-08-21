@@ -68,4 +68,14 @@ final class NPMenuBuilderTests: XCTestCase {
             XCTAssertTrue((spec?.tag ?? 0) > 0, "\(action) 缺少 tag")
         }
     }
+
+    /// 帮助菜单："查看帮助"指向 AppDelegate 的应用内帮助窗口（不走 NSApp 默认 showHelp: 无帮助册路径）。
+    func testHelpMenuItems() {
+        let viewHelp = allSpecs.first { $0.titleKey == "Menu.Help.ViewHelp" }
+        XCTAssertEqual(viewHelp?.actionName, "showHelp:")
+        XCTAssertEqual(viewHelp?.target, .appDelegate)
+        let sendFeedback = allSpecs.first { $0.titleKey == "Menu.Help.SendFeedback" }
+        XCTAssertEqual(sendFeedback?.actionName, "sendFeedback:")
+        XCTAssertEqual(sendFeedback?.target, .appDelegate)
+    }
 }

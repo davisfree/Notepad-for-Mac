@@ -118,7 +118,8 @@ UI/
 └── Common/
     ├── NPButton.swift            # 通用按钮样式
     ├── NPTextField.swift         # 通用输入框样式
-    └── NPSeparator.swift         # 分隔线视图
+    ├── NPSeparator.swift         # 分隔线视图
+    └── NPHelpWindowController.swift  # 帮助窗口（帮助 → 查看帮助）
 ```
 
 **职责**：
@@ -177,7 +178,9 @@ Utilities/
 │   ├── NPFileHelper.swift        # 文件操作辅助
 │   ├── NPKeyboardHelper.swift    # 快捷键辅助
 │   ├── NPAccessibilityHelper.swift   # 无障碍辅助
-│   └── NPFeedbackComposer.swift  # 反馈邮件链接构造（06 §7.2）
+│   ├── NPFeedbackComposer.swift  # 反馈邮件链接构造（06 §7.2）
+│   ├── NPMarkdownRenderer.swift  # 极简 Markdown 渲染器（帮助窗口正文）
+│   └── NPHelpContent.swift       # 帮助内容加载（本地化 Help.md，PRD 4.1）
 └── Constants/
     ├── NPConstants.swift         # 全局常量
     └── NPNotificationNames.swift # 通知名称定义
@@ -198,14 +201,17 @@ Resources/
 │   └── Images/                   # 图片资源
 ├── en.lproj/                     # 英文本地化
 │   ├── Localizable.strings
-│   └── Preferences.strings
+│   ├── Preferences.strings
+│   └── Help.md                   # 帮助正文（帮助 → 查看帮助）
 ├── Localizable.stringsdict       # 复数规则本地化
 ├── zh-Hans.lproj/                # 简体中文本地化
 │   ├── Localizable.strings
-│   └── Preferences.strings
+│   ├── Preferences.strings
+│   └── Help.md                   # 帮助正文
 ├── zh-Hant.lproj/                # 繁体中文本地化
 │   ├── Localizable.strings
-│   └── Preferences.strings
+│   ├── Preferences.strings
+│   └── Help.md                   # 帮助正文
 └── Credits.rtf                   # 关于窗口的 Credits
 ```
 

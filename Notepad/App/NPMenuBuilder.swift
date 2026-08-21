@@ -262,7 +262,7 @@ enum NPMenuBuilder {
 
     /// 帮助菜单。
     private static let helpMenuChildren: [NPMenuItemSpec] = [
-        NPMenuItemSpec(titleKey: "Menu.Help.ViewHelp", actionName: "showHelp:", target: .application),
+        NPMenuItemSpec(titleKey: "Menu.Help.ViewHelp", actionName: "showHelp:", target: .appDelegate),
         NPMenuItemSpec(titleKey: "Menu.Help.SendFeedback", actionName: "sendFeedback:", target: .appDelegate)
     ]
 }

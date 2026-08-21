@@ -43,7 +43,7 @@ A single **Universal Binary** runs on both Apple Silicon and Intel Macs.
 - **Large file handling** — files over 10 MB open read-only after a prompt, so your Mac never hangs.
 - **Print** — page setup and printing with centered filename header and "Page X of Y" footer.
 - **Touch Bar** support and **Shortcuts app** actions (macOS 13+).
-- **Trilingual UI** — English, 简体中文, 繁體中文.
+- **Trilingual UI** — English, Simplified Chinese, Traditional Chinese.
 - **Light & dark themes** — follows the system appearance.
 - **Zoom 10%–500%**, word wrap, system font panel, go-to-line, F5 timestamp insert.
 - **macOS Services integration** — "New Notepad Window with Text" service for selected text anywhere in the system.
@@ -141,4 +141,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions and the PR workflo
 
 ## License
 
-[MIT](LICENSE) © 2026 Notepad for macOS Contributors
+[MIT](LICENSE) © 2026 Notepad for Mac Contributors

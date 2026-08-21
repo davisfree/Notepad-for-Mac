@@ -93,6 +93,10 @@
 "Menu.Help.ViewHelp" = "View Help";
 "Menu.Help.SendFeedback" = "Send Feedback…";
 
+/* 帮助窗口 */
+"Help.Window.Title" = "Notepad Help";
+"Help.Unavailable" = "Help content is unavailable.";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "Ln %lld, Col %lld";
 "StatusBar.CharacterCount" = "%@ characters";

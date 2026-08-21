@@ -81,6 +81,10 @@
 "Menu.Help.ViewHelp" = "查看帮助";
 "Menu.Help.SendFeedback" = "发送反馈…";
 
+/* 帮助窗口 */
+"Help.Window.Title" = "Notepad 帮助";
+"Help.Unavailable" = "帮助内容不可用。";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
 "StatusBar.CharacterCount" = "%@ 个字符";

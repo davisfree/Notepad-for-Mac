@@ -2,6 +2,12 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+- 帮助 → 查看帮助：新增应用内帮助窗口 `NPHelpWindowController`（只读 Markdown 渲染，窗口关闭仅隐藏复用），正文为三语本地化资源 `Resources/<locale>.lproj/Help.md`，经 `NPHelpContent` 加载（Bundle 可注入）；菜单项由 `NSApp showHelp:` 改接 `AppDelegate.showHelp:`，附 `NPHelpContentTests` 与帮助菜单结构断言
+- 新增 `NPMarkdownRenderer` 极简 Markdown 渲染器（标题/列表/加粗/行内代码 → 真实字体属性；`AttributedString(markdown:)` 的 presentationIntent 语义属性 AppKit 不解析）
+
 ## [1.0.1] - 2026-08-09
 
 ### Added

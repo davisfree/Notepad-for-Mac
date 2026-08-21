@@ -331,6 +331,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 偏好设置窗口控制器（懒创建并持有；窗口关闭仅隐藏，复用同一实例）
     private lazy var preferencesWindowController = NPPreferencesWindowController()
 
+    /// 帮助窗口控制器（懒创建并持有；窗口关闭仅隐藏，复用同一实例）
+    private lazy var helpWindowController = NPHelpWindowController()
+
     /// Notepad → 偏好设置…（⌘,）：显示偏好设置窗口并激活应用。
     /// 首次显示时居中：有主窗口则居中于主窗口之上，否则居中于屏幕。
     /// - Parameter sender: 菜单项
@@ -362,6 +365,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NPUpdateService.shared.checkForUpdates()
     }
 #endif
+
+    /// 帮助 → 查看帮助（应用内帮助窗口，正文取自本地化 Help.md 资源）。
+    /// 首次显示时居中于屏幕。
+    /// - Parameter sender: 菜单项
+    @objc func showHelp(_ sender: Any?) {
+        let controller = helpWindowController
+        // 须先于 showWindow 记录可见性：showWindow 之后 isVisible 已为 true
+        let isFirstShow = controller.window?.isVisible != true
+        controller.showWindow(nil)
+        if isFirstShow {
+            controller.window?.center()
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     /// 帮助 → 发送反馈…（06_RELEASE §7.2：邮件渠道）。
     /// - Parameter sender: 菜单项
