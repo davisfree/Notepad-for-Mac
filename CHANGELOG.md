@@ -2,7 +2,7 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.0.2] - 2026-08-21
 
 ### Added
 - 帮助 → 查看帮助：新增应用内帮助窗口 `NPHelpWindowController`（只读 Markdown 渲染，窗口关闭仅隐藏复用），正文为三语本地化资源 `Resources/<locale>.lproj/Help.md`，经 `NPHelpContent` 加载（Bundle 可注入）；菜单项由 `NSApp showHelp:` 改接 `AppDelegate.showHelp:`，附 `NPHelpContentTests` 与帮助菜单结构断言
