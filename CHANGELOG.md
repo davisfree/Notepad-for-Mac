@@ -2,6 +2,11 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.0.3] - 2026-08-31
+
+### Fixed
+- 修复 Release 包主菜单显示语言 key（如 `Menu.File.NewTab`）而非本地化文案：删除 v1.0.0 起残留的根级 `Resources/Localizable.strings`（10 条 key 子集，其内容在 `en.lproj` 中均已存在），该文件被打包到 bundle 根目录后在 CFBundle 资源解析中遮蔽所有 lproj 下的同名表，导致任何系统语言下字符串查找失败
+
 ## [1.0.2] - 2026-08-21
 
 ### Added
