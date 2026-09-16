@@ -274,7 +274,17 @@ final class NPBackupService {
             }
             records.append(record)
         }
-        return records.sorted { lhs, rhs in
+
+        var latestBySlot: [String: NPBackupRecord] = [:]
+        for record in records {
+            let key = "\(record.windowGroupID.uuidString)|\(record.tabIndex)"
+            if let existing = latestBySlot[key], existing.timestamp >= record.timestamp {
+                continue
+            }
+            latestBySlot[key] = record
+        }
+
+        return latestBySlot.values.sorted { lhs, rhs in
             if lhs.windowGroupID.uuidString != rhs.windowGroupID.uuidString {
                 return lhs.windowGroupID.uuidString < rhs.windowGroupID.uuidString
             }
@@ -398,10 +408,17 @@ final class NPBackupService {
         let content = document.textContent
         let directory = backupDirectory
         Task.detached(priority: .utility) { [weak self] in
-            Self.writeBackupFiles(backupID: backupID, content: content,
-                                  metadata: metadata, in: directory)
-            await MainActor.run { [weak self] in
-                self?.registrations[key]?.isFlushing = false
+            do {
+                try Self.writeBackupFiles(backupID: backupID, content: content,
+                                          metadata: metadata, in: directory)
+                await MainActor.run { [weak self] in
+                    self?.registrations[key]?.lastWriteDate = Date()
+                    self?.registrations[key]?.isFlushing = false
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.registrations[key]?.isFlushing = false
+                }
             }
         }
 
@@ -431,20 +448,32 @@ final class NPBackupService {
 
     // MARK: - 私有：文件操作
 
-    /// 写入备份文件对（后台 IO，目录须已存在）。
+    /// 写入备份文件对（后台 IO，目录须已存在，采用临时文件 + 原子替换避免半成品快照）。
     /// - Parameters:
     ///   - backupID: 备份标识
     ///   - content: 文本内容
     ///   - metadata: 元数据
     ///   - directory: 备份目录
     private nonisolated static func writeBackupFiles(backupID: UUID, content: String,
-                                                     metadata: NPBackupMetadata, in directory: URL) {
+                                                     metadata: NPBackupMetadata, in directory: URL) throws {
+        let fileManager = FileManager.default
         let contentURL = directory.appendingPathComponent("\(backupID.uuidString).\(contentFileExtension)")
         let metadataURL = directory.appendingPathComponent("\(backupID.uuidString).\(metadataFileExtension)")
-        try? content.write(to: contentURL, atomically: true, encoding: .utf8)
-        if let data = try? JSONEncoder().encode(metadata) {
-            try? data.write(to: metadataURL, options: .atomic)
+        let tempContentURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(contentFileExtension)")
+        let tempMetadataURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(metadataFileExtension)")
+
+        try content.write(to: tempContentURL, atomically: true, encoding: .utf8)
+        let metadataData = try JSONEncoder().encode(metadata)
+        try metadataData.write(to: tempMetadataURL, options: .atomic)
+
+        if fileManager.fileExists(atPath: contentURL.path) {
+            try fileManager.removeItem(at: contentURL)
         }
+        if fileManager.fileExists(atPath: metadataURL.path) {
+            try fileManager.removeItem(at: metadataURL)
+        }
+        try fileManager.moveItem(at: tempContentURL, to: contentURL)
+        try fileManager.moveItem(at: tempMetadataURL, to: metadataURL)
     }
 
     /// 删除备份文件对。
@@ -456,7 +485,7 @@ final class NPBackupService {
         }
     }
 
-    /// 读取备份记录（元数据与内容文件均存在才有效）。
+    /// 读取备份记录（元数据与内容文件均存在才有效，且必须满足恢复所需字段合法性）。
     /// - Parameter metadataFileName: 元数据文件名
     /// - Returns: 备份记录
     private func loadRecord(metadataFileName: String) -> NPBackupRecord? {
@@ -467,7 +496,13 @@ final class NPBackupService {
         let contentURL = backupDirectory
             .appendingPathComponent("\(backupID.uuidString).\(Self.contentFileExtension)")
         guard fileManager.fileExists(atPath: contentURL.path),
-              let windowGroupID = UUID(uuidString: metadata.windowGroupID) else {
+              let windowGroupID = UUID(uuidString: metadata.windowGroupID),
+              metadata.cursorPosition >= 0,
+              metadata.tabIndex >= 0,
+              metadata.timestamp > 0 else {
+            return nil
+        }
+        guard metadata.originalFilePath == nil || !metadata.originalFilePath!.isEmpty else {
             return nil
         }
         let item = NPBackupItem(

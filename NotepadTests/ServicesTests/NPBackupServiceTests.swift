@@ -119,13 +119,17 @@ final class NPBackupServiceTests: XCTestCase {
         XCTAssertFalse(backupFiles().contains { $0.contains(expiredID.uuidString) })
     }
 
-    /// 原子写入临时残留（`*.sb-*` 等不匹配 `<UUID>.txt/.json` 的文件名）被 prune 清除。
+    /// 原子写入临时残留（`*.sb-*` / `*.tmp.*` 等不匹配 `<UUID>.txt/.json` 的文件名）被 prune 清除。
     func testPruneRemovesTemporaryResidue() throws {
         let residueName = "\(UUID().uuidString).txt.sb-d27de1f8-dWETIK"
+        let tempResidueName = "\(UUID().uuidString).tmp.txt"
         try "residue".write(to: backupDirectory.appendingPathComponent(residueName),
                             atomically: true, encoding: .utf8)
+        try "temp".write(to: backupDirectory.appendingPathComponent(tempResidueName),
+                          atomically: true, encoding: .utf8)
         sut.pruneInvalidBackupFiles(keeping: [])
         XCTAssertFalse(backupFiles().contains(residueName))
+        XCTAssertFalse(backupFiles().contains(tempResidueName))
     }
 
     /// 孤儿 `.json`（无对应 `.txt`）：不作为有效记录，prune 后删除。
@@ -155,6 +159,65 @@ final class NPBackupServiceTests: XCTestCase {
         XCTAssertTrue(sut.recoverableItems().isEmpty)
         sut.pruneInvalidBackupFiles(keeping: [])
         XCTAssertTrue(backupFiles().isEmpty)
+    }
+
+    /// 非法快照字段：负值或损坏字段应被拒绝，防止坏恢复状态写回。
+    func testRecoverableItemsRejectsInvalidSnapshotMetadata() throws {
+        let invalidID = UUID()
+        let metadata: [String: Any] = [
+            "originalFilePath": "/tmp/invalid.txt",
+            "cursorPosition": -1,
+            "encodingRawValue": String.Encoding.utf8.rawValue,
+            "lineEndingRawValue": "\n",
+            "windowGroupID": UUID().uuidString,
+            "tabIndex": -1,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+        try JSONSerialization.data(withJSONObject: metadata)
+            .write(to: backupDirectory.appendingPathComponent("\(invalidID.uuidString).json"))
+        try "content".write(to: backupDirectory.appendingPathComponent("\(invalidID.uuidString).txt"),
+                            atomically: true, encoding: .utf8)
+
+        XCTAssertTrue(sut.recoverableItems().isEmpty, "非法 metadata 字段应被拒绝恢复")
+    }
+
+    /// 同一原始文件的重复备份应去重：退出后重开只恢复一份标签，而不是复制出同名重复页签。
+    func testRecoverableItemsDeduplicatesSameOriginalFile() throws {
+        let filePath = "/tmp/reopen-dup.txt"
+        let windowGroupID = UUID()
+        let olderID = UUID()
+        let newerID = UUID()
+        let olderMetadata: [String: Any] = [
+            "originalFilePath": filePath,
+            "cursorPosition": 3,
+            "encodingRawValue": String.Encoding.utf8.rawValue,
+            "lineEndingRawValue": "\n",
+            "windowGroupID": windowGroupID.uuidString,
+            "tabIndex": 0,
+            "timestamp": Date().timeIntervalSince1970 - 60
+        ]
+        let newerMetadata: [String: Any] = [
+            "originalFilePath": filePath,
+            "cursorPosition": 10,
+            "encodingRawValue": String.Encoding.utf8.rawValue,
+            "lineEndingRawValue": "\n",
+            "windowGroupID": windowGroupID.uuidString,
+            "tabIndex": 0,
+            "timestamp": Date().timeIntervalSince1970
+        ]
+
+        try JSONSerialization.data(withJSONObject: olderMetadata)
+            .write(to: backupDirectory.appendingPathComponent("\(olderID.uuidString).json"))
+        try JSONSerialization.data(withJSONObject: newerMetadata)
+            .write(to: backupDirectory.appendingPathComponent("\(newerID.uuidString).json"))
+        try "old".write(to: backupDirectory.appendingPathComponent("\(olderID.uuidString).txt"),
+                         atomically: true, encoding: .utf8)
+        try "new".write(to: backupDirectory.appendingPathComponent("\(newerID.uuidString).txt"),
+                         atomically: true, encoding: .utf8)
+
+        let records = sut.recoverableRecords()
+        XCTAssertEqual(records.count, 1, "同一原始文件的重复快照应保留最新一份")
+        XCTAssertEqual(records[0].item.backupContentURL.lastPathComponent, "\(newerID.uuidString).txt")
     }
 
     /// 有效文件对：加载为有效记录，prune（以其标识为白名单）后保留。
