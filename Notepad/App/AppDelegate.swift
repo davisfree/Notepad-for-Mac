@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 初始化
 
+    private var backupFailureObserver: NSObjectProtocol?
+
     override init() {
         super.init()
         // 禁用 AppKit 窗口状态还原：坏/空的持久状态会抑制启动时的自动新建文档
@@ -37,6 +39,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 首个创建的 NSDocumentController 实例会成为 shared controller，
         // 必须早于任何 NSDocumentController.shared 访问（见 NPDocumentController 注释）
         _ = NPDocumentController()
+        backupFailureObserver = NotificationCenter.default.addObserver(
+            forName: NPNotificationNames.backupDidFail,
+            object: NPBackupService.shared,
+            queue: .main
+        ) { [weak self] notification in
+            self?.presentBackupFailure(notification)
+        }
+    }
+
+    deinit {
+        if let backupFailureObserver {
+            NotificationCenter.default.removeObserver(backupFailureObserver)
+        }
     }
 
     // MARK: - NSApplicationDelegate
@@ -65,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameter notification: 启动通知
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = NPMenuBuilder.buildMainMenu()
+        NPBackupService.shared.beginSession()
         let records = NPBackupService.shared.recoverableRecords()
         // 加载完有效备份后清掉目录中其余文件（超期/临时残留/孤儿/损坏）
         let validBackupIDs = Set(records.compactMap { record in
@@ -76,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             openUntitledWindowIfNoDocuments()
         }
-        // 崩溃监控（Sentry，04 §5.5）：懒初始化不阻塞启动；未配置 DSN 或未链接 SDK 时为空操作
+        // 崩溃监控（Sentry，04 §5.6）：懒初始化不阻塞启动；未配置 DSN 或未链接 SDK 时为空操作
         NPCrashReporter.shared.start()
         #if !APP_STORE
         // 自动更新（Sparkle，04 §5.2）：初始化即启动更新周期；App Store 构建整体剔除（06 §2.2）
@@ -106,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for document in NSDocumentController.shared.documents {
             document.updateChangeCount(.changeCleared)
         }
+        NPBackupService.shared.markCleanShutdown()
         return .terminateNow
     }
 
@@ -140,6 +157,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - 私有
+
+    /// 以系统非模态通知反馈会话缓存失败；原文件不会因此被修改。
+    ///
+    /// 通知不可用或未授权时由 `NPUserNotificationService` 降级为统一日志（不弹模态框）。
+    private func presentBackupFailure(_ notification: Notification) {
+        guard let identifier = notification.userInfo?[NPNotificationNames.backupErrorKey] as? String else {
+            return
+        }
+        let error: NPBackupError
+        switch identifier {
+        case "snapshotTooLarge":
+            error = .snapshotTooLarge
+        case "storageLimitExceeded":
+            error = .storageLimitExceeded
+        default:
+            error = .writeFailed
+        }
+        NPUserNotificationService.shared.deliver(
+            title: NSLocalizedString("Backup.Error.Title", comment: "会话缓存失败标题"),
+            body: error.localizedDescription
+        )
+    }
 
     /// 创建无标题文档并确保其纳入 `NSDocumentController.documents` 跟踪。
     ///
@@ -240,14 +279,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !controller.documents.contains(where: { $0 === document }) {
             controller.addDocument(document)
         }
-        // 备份内容与原文件不同（有未保存更改）→ 用备份内容并标脏
+        let fileModificationDate = try? originalFileURL.resourceValues(
+            forKeys: [.contentModificationDateKey]
+        ).contentModificationDate
         if let backupContent,
-           NPBackupService.shouldRestoreBackupContent(backupContent: backupContent,
-                                                      fileContent: document.textContent) {
+           NPBackupService.restoreDecision(
+               backupContent: backupContent,
+               fileContent: document.textContent,
+               backupTimestamp: record.timestamp,
+               fileModificationDate: fileModificationDate
+           ) == .useBackup {
             document.textContent = backupContent
             document.updateChangeCount(.changeDone)
+        } else if let backupContent,
+                  backupContent != document.textContent,
+                  fileModificationDate != nil {
+            presentRestoreConflictNotification()
         }
         return document
+    }
+
+    /// 提示用户原文件较新，因此恢复时保留了原文件内容。
+    private func presentRestoreConflictNotification() {
+        NPUserNotificationService.shared.deliver(
+            title: NSLocalizedString("Backup.RestoreConflict.Title", comment: "恢复冲突标题"),
+            body: NSLocalizedString("Backup.RestoreConflict.Message", comment: "恢复冲突说明")
+        )
     }
 
     // MARK: - 文件菜单动作
@@ -293,6 +350,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+    }
+
+    /// 文件 → 保存（⌘S）：显式路由到当前选中的标签文档。
+    /// - Parameter sender: 菜单项
+    @objc func saveDocument(_ sender: Any?) {
+        currentDocument()?.save(sender)
+    }
+
+    /// 文件 → 另存为（⇧⌘S）：显式路由到当前选中的标签文档。
+    /// - Parameter sender: 菜单项
+    @objc func saveDocumentAs(_ sender: Any?) {
+        currentDocument()?.saveAs(sender)
     }
 
     /// 文件 → 打开最近使用的 → 清空菜单。
@@ -438,6 +507,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// - Parameter menuItem: 待验证菜单项
     /// - Returns: 是否可用
     @objc func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(saveDocument(_:)) {
+            return currentDocument()?.isDocumentEdited == true
+        }
+        if menuItem.action == #selector(saveDocumentAs(_:)) {
+            return currentDocument() != nil
+        }
         if menuItem.action == #selector(showPageSetupAction(_:))
             || menuItem.action == #selector(printDocumentAction(_:)) {
             return currentDocument() != nil

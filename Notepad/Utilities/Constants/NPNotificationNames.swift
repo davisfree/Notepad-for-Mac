@@ -32,6 +32,9 @@ enum NPNotificationNames {
     /// 偏好设置发生变化（发出者：NPPreferences）
     static let preferencesDidChange = Notification.Name("NPPreferencesDidChange")
 
+    /// 会话缓存写入失败（发出者：NPBackupService）
+    static let backupDidFail = Notification.Name("NPBackupDidFail")
+
     // MARK: - userInfo 键
 
     /// `NSNumber`，值为 `String.Encoding.rawValue`
@@ -42,4 +45,6 @@ enum NPNotificationNames {
     static let themeKey = "theme"
     /// `NSNumber`，值为 `Double`（1.0 = 100%）
     static let zoomLevelKey = "zoomLevel"
+    /// `String`，值为 `NPBackupError` 的稳定标识
+    static let backupErrorKey = "backupError"
 }

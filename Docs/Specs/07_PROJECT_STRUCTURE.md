@@ -70,7 +70,7 @@ Document/
 
 **职责**：
 - 文件读写、编码转换
-- 自动保存、版本管理
+- 会话缓存、版本管理
 - 脏状态管理
 - 大文件策略
 
@@ -151,7 +151,8 @@ Preferences/
 Services/
 ├── NPPrintService.swift          # 打印服务
 ├── NPUpdateService.swift         # 自动更新服务（Sparkle）
-├── NPBackupService.swift         # 自动保存/崩溃恢复
+├── NPBackupService.swift         # 会话缓存/崩溃恢复
+├── NPUserNotificationService.swift # 用户提示投递（UserNotifications + 日志降级）
 ├── NPShortcutService.swift       # 快捷指令支持
 └── Analytics/
     ├── NPAnalytics.swift         # 埋点统计（可选）

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CryptoKit
 
 /// 崩溃恢复项：描述一份可恢复的备份（04 §5.3）。
 struct NPBackupItem {
@@ -24,6 +25,8 @@ struct NPBackupItem {
 
 /// 备份元数据（JSON 序列化；`NPBackupItem` 之外的会话归属信息仅存于元数据）。
 struct NPBackupMetadata: Codable {
+    /// 元数据格式版本；旧格式缺失时按兼容格式读取
+    var schemaVersion: Int?
     /// 原始文件路径（nil = 无标题文档）
     var originalFilePath: String?
     /// 光标位置（UTF-16 偏移量）
@@ -38,6 +41,51 @@ struct NPBackupMetadata: Codable {
     var tabIndex: Int
     /// 备份时间戳（秒，过期清理依据）
     var timestamp: TimeInterval
+    /// 文档快照版本；旧格式缺失时视为未版本化
+    var revision: UInt64?
+    /// UTF-8 内容的 SHA-256；旧格式缺失时跳过校验
+    var contentHash: String?
+}
+
+/// 会话生命周期标记。`cleanShutdown == false` 表示上次进程未完成正常退出流程。
+private struct NPBackupSessionState: Codable {
+    var schemaVersion: Int
+    var cleanShutdown: Bool
+    var timestamp: TimeInterval
+}
+
+/// 会话缓存写入错误（用于非阻塞地暴露缓存失败原因）。
+enum NPBackupError: Error, Equatable {
+    case snapshotTooLarge
+    case storageLimitExceeded
+    case writeFailed
+
+    var identifier: String {
+        switch self {
+        case .snapshotTooLarge:
+            return "snapshotTooLarge"
+        case .storageLimitExceeded:
+            return "storageLimitExceeded"
+        case .writeFailed:
+            return "writeFailed"
+        }
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .snapshotTooLarge:
+            return NSLocalizedString("Backup.Error.SnapshotTooLarge", comment: "缓存文件过大")
+        case .storageLimitExceeded:
+            return NSLocalizedString("Backup.Error.StorageLimitExceeded", comment: "缓存目录已满")
+        case .writeFailed:
+            return NSLocalizedString("Backup.Error.WriteFailed", comment: "缓存写入失败")
+        }
+    }
+}
+
+enum NPBackupRestoreDecision: Equatable {
+    case useOriginal
+    case useBackup
 }
 
 /// 可恢复记录（`NPBackupItem` + 会话归属，服务内部恢复用）。
@@ -52,12 +100,12 @@ struct NPBackupRecord {
     let timestamp: TimeInterval
 }
 
-/// 自动保存与崩溃恢复服务（PRD FR-003、5.3 节：崩溃时丢失不超过 1 秒的编辑内容）。
+/// 会话缓存与崩溃恢复服务（PRD FR-003、5.3 节：崩溃时丢失不超过 1 秒的编辑内容）。
 ///
-/// 备份机制与自动保存开关**无关**，始终生效（`01_TECH_SPEC.md` 3.5）：
+/// 备份机制始终生效，不提供开关（`01_TECH_SPEC.md` 3.5）：
 /// - 内容变化经 `NPTextDocument.onContentDidChange` 触发，**≤1s 节流**（前缘立即写 + 尾缘补写）
 ///   写入会话备份；备份只服务"未正常关闭"（崩溃/退出）与会话恢复；
-/// - 开关 ON 且文档已存盘：除备份外，节流**写回原文件**（`data(ofType:)` 保持原编码/换行符/BOM）；
+/// - 原文件只由用户显式保存更新；缓存不会覆盖用户文件；
 /// - 正常关闭标签/文档：删除对应备份；退出应用：备份保留，作为下次会话恢复来源。
 ///
 /// 备份目录：`~/Library/Application Support/Notepad/Backups/`，
@@ -79,6 +127,12 @@ final class NPBackupService {
     private nonisolated static let contentFileExtension = "txt"
     /// 备份元数据文件扩展名
     private nonisolated static let metadataFileExtension = "json"
+    /// 会话生命周期文件名
+    private nonisolated static let sessionStateFileName = "session-state.json"
+    /// 单文档快照最大 UTF-8 字节数（10 MiB）
+    static let maxSnapshotBytes = 10 * 1024 * 1024
+    /// 会话缓存目录最大占用（100 MiB）
+    private static let maxBackupDirectoryBytes = 100 * 1024 * 1024
 
     // MARK: - 属性
 
@@ -86,6 +140,8 @@ final class NPBackupService {
     private let backupDirectory: URL
     /// 文件管理器
     private let fileManager = FileManager.default
+    /// 串行化快照提交，避免旧写入晚完成而覆盖新内容
+    private let writeQueue = DispatchQueue(label: "com.notepad.backup.write", qos: .utility)
 
     /// 文档注册信息。
     private struct Registration {
@@ -101,6 +157,8 @@ final class NPBackupService {
         var cursorPosition: Int
         /// 上次写盘时间
         var lastWriteDate: Date
+        /// 已提交或正在提交的快照版本
+        var revision: UInt64
         /// 尾缘写入任务
         var trailingTask: Task<Void, Never>?
         /// 写盘进行中（防止写回清脏触发的重入）
@@ -113,6 +171,10 @@ final class NPBackupService {
     /// 是否处于退出流程（`markTerminating` 置位）。
     /// 供关窗路径区分"用户手动关窗"（删除备份）与"退出流程关窗"（保留备份）。
     private(set) var isTerminating = false
+    /// 上一次会话是否完成正常退出。
+    private(set) var previousSessionEndedCleanly = true
+    /// 最近一次快照写入错误；成功提交新快照后清除。
+    private(set) var lastBackupError: NPBackupError?
 
     // MARK: - 初始化
 
@@ -133,9 +195,39 @@ final class NPBackupService {
         try? fileManager.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
     }
 
+    // MARK: - 会话生命周期
+
+    /// 开始新会话并返回上一次会话是否正常退出。
+    /// 缺少状态文件按首次启动处理；损坏状态按异常退出处理，以保守保留恢复数据。
+    @discardableResult
+    func beginSession() -> Bool {
+        let stateURL = backupDirectory.appendingPathComponent(Self.sessionStateFileName)
+        let previousState: NPBackupSessionState?
+        if let data = try? Data(contentsOf: stateURL) {
+            previousState = try? JSONDecoder().decode(NPBackupSessionState.self, from: data)
+        } else {
+            previousState = nil
+        }
+        let stateExists = FileManager.default.fileExists(atPath: stateURL.path)
+        let previousClean = stateExists ? (previousState?.cleanShutdown ?? false) : true
+        previousSessionEndedCleanly = previousClean
+        writeSessionState(cleanShutdown: false)
+        return previousClean
+    }
+
+    /// 标记当前会话已完成正常退出。
+    func markCleanShutdown() {
+        writeSessionState(cleanShutdown: true)
+    }
+
+    /// 等待已排队的快照文件写入完成。
+    func waitForPendingWrites() {
+        writeQueue.sync { }
+    }
+
     // MARK: - 注册
 
-    /// 注册文档进行自动保存监控（接入内容变化信号并立即建立初始备份）。
+    /// 注册文档进行会话缓存监控（接入内容变化信号并立即建立初始备份）。
     /// - Parameter document: 目标文档
     func registerDocument(_ document: NPTextDocument) {
         let key = ObjectIdentifier(document)
@@ -149,6 +241,7 @@ final class NPBackupService {
             tabIndex: 0,
             cursorPosition: 0,
             lastWriteDate: .distantPast,
+            revision: 0,
             trailingTask: nil,
             isFlushing: false
         )
@@ -170,7 +263,7 @@ final class NPBackupService {
         }
         registration.trailingTask?.cancel()
         document.onContentDidChange = nil
-        deleteBackupFiles(backupID: registration.backupID)
+        enqueueDeleteBackupFiles(backupID: registration.backupID)
     }
 
     /// 立即落盘指定文档的待写内容（取消尾缘任务并同步触发一次刷写）。
@@ -194,6 +287,7 @@ final class NPBackupService {
                 flushBackup(for: document)
             }
         }
+        waitForPendingWrites()
     }
 
     /// 标记进入退出流程（退出钩子调用；此后关窗保留备份，供下次启动会话恢复）。
@@ -226,7 +320,7 @@ final class NPBackupService {
         let freshID = registration.backupID
         registration.backupID = backupID
         registrations[key] = registration
-        deleteBackupFiles(backupID: freshID)
+        enqueueDeleteBackupFiles(backupID: freshID)
         flushBackup(for: document)
     }
 
@@ -309,6 +403,9 @@ final class NPBackupService {
             return
         }
         for file in files {
+            if file == Self.sessionStateFileName {
+                continue
+            }
             let name = (file as NSString).deletingPathExtension
             guard let backupID = UUID(uuidString: name),
                   activeIDs.contains(backupID) else {
@@ -329,6 +426,9 @@ final class NPBackupService {
             return
         }
         for file in files {
+            if file == Self.sessionStateFileName {
+                continue
+            }
             let name = (file as NSString).deletingPathExtension
             let ext = (file as NSString).pathExtension
             guard ext == Self.contentFileExtension || ext == Self.metadataFileExtension,
@@ -349,6 +449,20 @@ final class NPBackupService {
     /// - Returns: 是否应以备份内容覆盖
     static func shouldRestoreBackupContent(backupContent: String, fileContent: String) -> Bool {
         backupContent != fileContent
+    }
+
+    /// 冲突恢复决策：只有缓存内容不同且不早于原文件时才使用缓存。
+    /// 无法读取原文件修改时间时保守沿用旧行为，优先恢复缓存内容。
+    static func restoreDecision(backupContent: String, fileContent: String,
+                                backupTimestamp: TimeInterval,
+                                fileModificationDate: Date?) -> NPBackupRestoreDecision {
+        guard backupContent != fileContent else {
+            return .useOriginal
+        }
+        guard let fileModificationDate else {
+            return .useBackup
+        }
+        return backupTimestamp >= fileModificationDate.timeIntervalSince1970 ? .useBackup : .useOriginal
     }
 
     // MARK: - 节流写盘
@@ -383,70 +497,93 @@ final class NPBackupService {
         }
     }
 
-    /// 立即写盘：内容 + 元数据（IO 后台执行）；开关 ON 且已存盘时同步写回原文件。
+    /// 立即写盘：仅写入内容与元数据快照（IO 后台执行）。
     /// - Parameter document: 目标文档
     private func flushBackup(for document: NPTextDocument) {
         let key = ObjectIdentifier(document)
         guard var registration = registrations[key] else {
             return
         }
+        registration.revision &+= 1
         registration.isFlushing = true
         registration.trailingTask = nil
         registration.lastWriteDate = Date()
         registrations[key] = registration
 
         let backupID = registration.backupID
+        let revision = registration.revision
+        let content = document.textContent
+        guard Data(content.utf8).count <= Self.maxSnapshotBytes else {
+            lastBackupError = .snapshotTooLarge
+            registration.isFlushing = false
+            registrations[key] = registration
+            postBackupFailure(.snapshotTooLarge)
+            return
+        }
         let metadata = NPBackupMetadata(
+            schemaVersion: 2,
             originalFilePath: document.fileURL?.path,
             cursorPosition: registration.cursorPosition,
             encodingRawValue: document.currentEncoding.rawValue,
             lineEndingRawValue: document.currentLineEnding.rawValue,
             windowGroupID: registration.windowGroupID.uuidString,
             tabIndex: registration.tabIndex,
-            timestamp: Date().timeIntervalSince1970
+            timestamp: Date().timeIntervalSince1970,
+            revision: revision,
+            contentHash: Self.contentHash(for: content)
         )
-        let content = document.textContent
         let directory = backupDirectory
-        Task.detached(priority: .utility) { [weak self] in
+        writeQueue.async { [weak self] in
             do {
                 try Self.writeBackupFiles(backupID: backupID, content: content,
                                           metadata: metadata, in: directory)
-                await MainActor.run { [weak self] in
-                    self?.registrations[key]?.lastWriteDate = Date()
-                    self?.registrations[key]?.isFlushing = false
+                Task { @MainActor [weak self] in
+                    guard let self, var current = self.registrations[key],
+                          current.revision == revision else {
+                        return
+                    }
+                    current.lastWriteDate = Date()
+                    current.isFlushing = false
+                    self.registrations[key] = current
+                    self.lastBackupError = nil
                 }
             } catch {
-                await MainActor.run { [weak self] in
-                    self?.registrations[key]?.isFlushing = false
+                Task { @MainActor [weak self] in
+                    guard let self, var current = self.registrations[key],
+                          current.revision == revision else {
+                        return
+                    }
+                    current.isFlushing = false
+                    self.registrations[key] = current
+                    let backupError = (error as? NPBackupError) ?? .writeFailed
+                    self.lastBackupError = backupError
+                    self.postBackupFailure(backupError)
                 }
             }
-        }
-
-        // 开关 ON 且已存盘：节流写回原文件（保持原编码/换行符/BOM）
-        if NPPreferences.shared.isAutoSaveEnabled, let fileURL = document.fileURL {
-            writeBackToOriginal(document: document, fileURL: fileURL)
-        }
-    }
-
-    /// 写回原文件并清除脏状态（`isFlushing` 标志阻止清脏触发的重入调度）。
-    /// - Parameters:
-    ///   - document: 目标文档
-    ///   - fileURL: 原文件位置
-    private func writeBackToOriginal(document: NPTextDocument, fileURL: URL) {
-        do {
-            let data = try document.data(ofType: "public.plain-text")
-            Task.detached(priority: .utility) {
-                // 非原子写：沙盒下原子写会在用户目录遗留 `.sb-*` 临时文件；
-                // 崩溃安全本就由会话备份（<UUID>.txt）承载，写回无需原子保证
-                try? data.write(to: fileURL)
-            }
-            document.updateChangeCount(.changeCleared)
-        } catch {
-            // 编码失败等：跳过写回，会话备份仍在
         }
     }
 
     // MARK: - 私有：文件操作
+
+    /// 原子写入会话生命周期状态。
+    private func writeSessionState(cleanShutdown: Bool) {
+        let state = NPBackupSessionState(schemaVersion: 1,
+                                         cleanShutdown: cleanShutdown,
+                                         timestamp: Date().timeIntervalSince1970)
+        guard let data = try? JSONEncoder().encode(state) else {
+            return
+        }
+        let stateURL = backupDirectory.appendingPathComponent(Self.sessionStateFileName)
+        try? data.write(to: stateURL, options: .atomic)
+    }
+
+    private func postBackupFailure(_ error: NPBackupError) {
+        NotificationCenter.default.post(
+            name: NPNotificationNames.backupDidFail,
+            object: self,
+            userInfo: [NPNotificationNames.backupErrorKey: error.identifier]
+        )
+    }
 
     /// 写入备份文件对（后台 IO，目录须已存在，采用临时文件 + 原子替换避免半成品快照）。
     /// - Parameters:
@@ -462,18 +599,53 @@ final class NPBackupService {
         let tempContentURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(contentFileExtension)")
         let tempMetadataURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(metadataFileExtension)")
 
-        try content.write(to: tempContentURL, atomically: true, encoding: .utf8)
+        let contentData = Data(content.utf8)
         let metadataData = try JSONEncoder().encode(metadata)
+        let currentBytes = directoryByteCount(in: directory,
+                                               excluding: [contentURL, metadataURL,
+                                                           tempContentURL, tempMetadataURL])
+        guard currentBytes + contentData.count + metadataData.count <= maxBackupDirectoryBytes else {
+            throw NPBackupError.storageLimitExceeded
+        }
+
+        try contentData.write(to: tempContentURL, options: .atomic)
         try metadataData.write(to: tempMetadataURL, options: .atomic)
 
-        if fileManager.fileExists(atPath: contentURL.path) {
-            try fileManager.removeItem(at: contentURL)
+        try replaceOrMove(tempURL: tempContentURL, destinationURL: contentURL,
+                          fileManager: fileManager)
+        try replaceOrMove(tempURL: tempMetadataURL, destinationURL: metadataURL,
+                          fileManager: fileManager)
+    }
+
+    private nonisolated static func replaceOrMove(tempURL: URL, destinationURL: URL,
+                                                  fileManager: FileManager) throws {
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.replaceItemAt(destinationURL, withItemAt: tempURL,
+                                          backupItemName: nil,
+                                          options: .usingNewMetadataOnly)
+        } else {
+            try fileManager.moveItem(at: tempURL, to: destinationURL)
         }
-        if fileManager.fileExists(atPath: metadataURL.path) {
-            try fileManager.removeItem(at: metadataURL)
-        }
-        try fileManager.moveItem(at: tempContentURL, to: contentURL)
-        try fileManager.moveItem(at: tempMetadataURL, to: metadataURL)
+    }
+
+    private nonisolated static func directoryByteCount(in directory: URL,
+                                                       excluding excludedURLs: [URL]) -> Int {
+        let excludedPaths = Set(excludedURLs.map(\.path))
+        return (try? FileManager.default.contentsOfDirectory(at: directory,
+                                                              includingPropertiesForKeys: [.fileSizeKey],
+                                                              options: [.skipsHiddenFiles]))?.reduce(0) { total, url in
+            guard !excludedPaths.contains(url.path),
+                  let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+                  let fileSize = values.fileSize else {
+                return total
+            }
+            return total + fileSize
+        } ?? 0
+    }
+
+    /// 计算快照内容摘要，用于恢复前校验内容与元数据是否属于同一提交。
+    private nonisolated static func contentHash(for content: String) -> String {
+        SHA256.hash(data: Data(content.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     /// 删除备份文件对。
@@ -485,11 +657,24 @@ final class NPBackupService {
         }
     }
 
+    /// 在同一 IO 队列中删除并同步等待，确保不会被旧快照写入重新创建，
+    /// 且调用方返回时缓存已经删除。
+    private func enqueueDeleteBackupFiles(backupID: UUID) {
+        let directory = backupDirectory
+        writeQueue.sync {
+            let fileManager = FileManager.default
+            for ext in [Self.contentFileExtension, Self.metadataFileExtension] {
+                let url = directory.appendingPathComponent("\(backupID.uuidString).\(ext)")
+                try? fileManager.removeItem(at: url)
+            }
+        }
+    }
+
     /// 读取备份记录（元数据与内容文件均存在才有效，且必须满足恢复所需字段合法性）。
     /// - Parameter metadataFileName: 元数据文件名
     /// - Returns: 备份记录
     private func loadRecord(metadataFileName: String) -> NPBackupRecord? {
-        guard let metadata = loadMetadata(metadataFileName: metadataFileName) else {
+        guard var metadata = loadMetadata(metadataFileName: metadataFileName) else {
             return nil
         }
         let backupID = backupID(fromMetadataFileName: metadataFileName)
@@ -502,8 +687,21 @@ final class NPBackupService {
               metadata.timestamp > 0 else {
             return nil
         }
+        guard let content = try? String(contentsOf: contentURL, encoding: .utf8) else {
+            return nil
+        }
+        if let expectedHash = metadata.contentHash,
+           Self.contentHash(for: content) != expectedHash {
+            return nil
+        }
         guard metadata.originalFilePath == nil || !metadata.originalFilePath!.isEmpty else {
             return nil
+        }
+        if metadata.schemaVersion != 2 || metadata.revision == nil || metadata.contentHash == nil {
+            metadata.schemaVersion = 2
+            metadata.revision = metadata.revision ?? 0
+            metadata.contentHash = Self.contentHash(for: content)
+            migrateMetadata(metadata, metadataFileName: metadataFileName)
         }
         let item = NPBackupItem(
             backupContentURL: contentURL,
@@ -514,6 +712,14 @@ final class NPBackupService {
         )
         return NPBackupRecord(item: item, windowGroupID: windowGroupID,
                               tabIndex: metadata.tabIndex, timestamp: metadata.timestamp)
+    }
+
+    /// 将旧版 metadata 升级为当前格式；升级失败不影响本次恢复。
+    private func migrateMetadata(_ metadata: NPBackupMetadata, metadataFileName: String) {
+        guard let data = try? JSONEncoder().encode(metadata) else {
+            return
+        }
+        try? data.write(to: backupDirectory.appendingPathComponent(metadataFileName), options: .atomic)
     }
 
     /// 读取元数据。

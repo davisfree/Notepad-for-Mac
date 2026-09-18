@@ -97,6 +97,14 @@
 "Help.Window.Title" = "Notepad Help";
 "Help.Unavailable" = "Help content is unavailable.";
 
+/* Session backup */
+"Backup.Error.Title" = "Session Recovery Cache";
+"Backup.Error.SnapshotTooLarge" = "This document is too large to cache for session recovery.";
+"Backup.Error.StorageLimitExceeded" = "The session recovery cache is full. Your original file was not changed.";
+"Backup.Error.WriteFailed" = "Session recovery could not cache the latest changes. Your original file was not changed.";
+"Backup.RestoreConflict.Title" = "Session Recovery Conflict";
+"Backup.RestoreConflict.Message" = "The original file was changed more recently, so its content was kept.";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "Ln %lld, Col %lld";
 "StatusBar.CharacterCount" = "%@ characters";

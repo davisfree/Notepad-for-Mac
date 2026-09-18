@@ -8,7 +8,7 @@
 
 import AppKit
 
-/// 偏好设置 - 通用标签页（显示语言 / 主题 / 自动保存 / 显示状态栏）。
+/// 偏好设置 - 通用标签页（显示语言 / 主题 / 显示状态栏）。
 ///
 /// 控件与 `NPPreferences` 双向同步：初始化与 `preferencesDidChange` 通知刷新控件，
 /// 控件动作写回偏好（`@Published` didSet 即时持久化）。写回前比对现值，避免
@@ -27,8 +27,6 @@ final class NPGeneralPreferencesViewController: NSViewController {
     let languagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     /// 主题弹出菜单
     let themePopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    /// 自动保存复选框
-    let autoSaveCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     /// 显示状态栏复选框
     let statusBarCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
 
@@ -107,16 +105,6 @@ final class NPGeneralPreferencesViewController: NSViewController {
         }
     }
 
-    /// 自动保存开关。
-    /// - Parameter sender: 复选框
-    @objc func autoSaveDidChange(_ sender: NSButton) {
-        let enabled = sender.state == .on
-        guard preferences.isAutoSaveEnabled != enabled else {
-            return
-        }
-        preferences.isAutoSaveEnabled = enabled
-    }
-
     /// 显示状态栏开关。
     /// - Parameter sender: 复选框
     @objc func statusBarDidChange(_ sender: NSButton) {
@@ -145,10 +133,6 @@ final class NPGeneralPreferencesViewController: NSViewController {
         themePopup.target = self
         themePopup.action = #selector(themeDidChange(_:))
 
-        autoSaveCheckbox.title = Self.localized("Preferences.General.AutoSave", comment: "通用：自动保存")
-        autoSaveCheckbox.target = self
-        autoSaveCheckbox.action = #selector(autoSaveDidChange(_:))
-
         statusBarCheckbox.title = Self.localized("Preferences.General.ShowStatusBar", comment: "通用：显示状态栏")
         statusBarCheckbox.target = self
         statusBarCheckbox.action = #selector(statusBarDidChange(_:))
@@ -161,7 +145,6 @@ final class NPGeneralPreferencesViewController: NSViewController {
                                            comment: "通用：显示语言")), languagePopup],
             [Self.makeLabel(Self.localized("Preferences.General.Theme",
                                            comment: "通用：主题")), themePopup],
-            [NSGridCell.emptyContentView, autoSaveCheckbox],
             [NSGridCell.emptyContentView, statusBarCheckbox]
         ])
         grid.column(at: 0).xPlacement = .trailing
@@ -188,7 +171,6 @@ final class NPGeneralPreferencesViewController: NSViewController {
     private func refreshFromPreferences() {
         selectPopupItem(languagePopup, rawValue: preferences.displayLanguage.rawValue)
         selectPopupItem(themePopup, rawValue: preferences.theme.rawValue)
-        autoSaveCheckbox.state = preferences.isAutoSaveEnabled ? .on : .off
         statusBarCheckbox.state = preferences.isStatusBarVisible ? .on : .off
     }
 

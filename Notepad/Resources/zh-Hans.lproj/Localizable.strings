@@ -85,6 +85,14 @@
 "Help.Window.Title" = "Notepad 帮助";
 "Help.Unavailable" = "帮助内容不可用。";
 
+/* 会话缓存 */
+"Backup.Error.Title" = "会话缓存提示";
+"Backup.Error.SnapshotTooLarge" = "文档过大，无法写入会话缓存。";
+"Backup.Error.StorageLimitExceeded" = "会话缓存空间已满，原文件未被修改。";
+"Backup.Error.WriteFailed" = "无法缓存最新编辑内容，原文件未被修改。";
+"Backup.RestoreConflict.Title" = "会话恢复冲突";
+"Backup.RestoreConflict.Message" = "原文件更新得更晚，本次恢复保留了原文件内容。";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
 "StatusBar.CharacterCount" = "%@ 个字符";

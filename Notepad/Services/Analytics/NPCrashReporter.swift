@@ -45,7 +45,7 @@ enum NPCrashSanitizer {
     }
 }
 
-/// 崩溃报告服务（04 §5.5；01 §1.2：Sentry，SPM 引入，懒加载初始化不阻塞冷启动）。
+/// 崩溃报告服务（04 §5.6；01 §1.2：Sentry，SPM 引入，懒加载初始化不阻塞冷启动）。
 ///
 /// - 启动：`start()` 仅完成 Sentry 配置（Sentry 自身异步捕获与上报，不占用主线程）
 /// - DSN：经 Info.plist `SentryDSN` 注入（发布构建填写真实 DSN；留空或未链接 SDK → 空操作）

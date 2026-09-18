@@ -73,6 +73,135 @@ final class NPBackupServiceTests: XCTestCase {
         sut.unregisterDocument(document)
     }
 
+    /// 每次快照写入都应递增 revision，便于恢复和拒绝过期写入。
+    func testBackupMetadataTracksRevision() throws {
+        let document = NPTextDocument()
+        sut.registerDocument(document)
+        document.textContent = "v1"
+        document.updateChangeCount(.changeDone)
+
+        XCTAssertTrue(waitFor {
+            guard let metadataName = self.backupFiles().first(where: { $0.hasSuffix(".json") }),
+                  let data = try? Data(contentsOf: self.backupDirectory.appendingPathComponent(metadataName)),
+                  let metadata = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let revision = metadata["revision"] as? NSNumber else {
+                return false
+            }
+            return revision.uint64Value >= 2
+        })
+        sut.unregisterDocument(document)
+    }
+
+    /// 会话标记：启动新会话前应将状态置为运行中，并返回上次是否正常退出。
+    func testSessionMarkerDistinguishesCleanAndUncleanShutdown() throws {
+        XCTAssertTrue(sut.beginSession(), "首次启动没有上次会话，应视为正常状态")
+        XCTAssertFalse(sut.beginSession(), "未标记退出前再次启动应视为异常结束")
+
+        sut.markCleanShutdown()
+        XCTAssertTrue(sut.beginSession(), "标记正常退出后再次启动应视为正常状态")
+    }
+
+    /// 启动清理不能删除会话生命周期标记。
+    func testPruneKeepsSessionState() throws {
+        sut.beginSession()
+        sut.pruneInvalidBackupFiles(keeping: [])
+        sut.markCleanShutdown()
+
+        XCTAssertTrue(backupFiles().contains("session-state.json"))
+        XCTAssertTrue(sut.beginSession())
+    }
+
+    /// 旧版 metadata 可恢复，并在读取后补齐当前 schema 字段。
+    func testLegacyMetadataMigratesOnRead() throws {
+        let legacyID = UUID()
+        try writeMetadata(backupID: legacyID)
+        try "legacy content".write(
+            to: backupDirectory.appendingPathComponent("\(legacyID.uuidString).txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        XCTAssertEqual(sut.recoverableItems().count, 1)
+        let metadataURL = backupDirectory.appendingPathComponent("\(legacyID.uuidString).json")
+        let data = try Data(contentsOf: metadataURL)
+        let metadata = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(metadata["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(metadata["revision"] as? Int, 0)
+        XCTAssertNotNil(metadata["contentHash"] as? String)
+    }
+
+    /// 恢复冲突：缓存较新时使用缓存，原文件较新时保留原文件。
+    func testRestoreDecisionUsesNewestSnapshot() {
+        let backupDate = Date(timeIntervalSince1970: 200)
+        XCTAssertEqual(
+            NPBackupService.restoreDecision(
+                backupContent: "edited",
+                fileContent: "original",
+                backupTimestamp: backupDate.timeIntervalSince1970,
+                fileModificationDate: Date(timeIntervalSince1970: 100)
+            ),
+            .useBackup
+        )
+        XCTAssertEqual(
+            NPBackupService.restoreDecision(
+                backupContent: "edited",
+                fileContent: "original",
+                backupTimestamp: 100,
+                fileModificationDate: Date(timeIntervalSince1970: 200)
+            ),
+            .useOriginal
+        )
+        XCTAssertEqual(
+            NPBackupService.restoreDecision(
+                backupContent: "same",
+                fileContent: "same",
+                backupTimestamp: 100,
+                fileModificationDate: Date(timeIntervalSince1970: 200)
+            ),
+            .useOriginal
+        )
+    }
+
+    /// 超过单文档缓存上限时拒绝写入，并保留可观察错误状态。
+    func testOversizedSnapshotReportsFailure() throws {
+        let document = NPTextDocument()
+        let notificationExpectation = expectation(description: "缓存失败通知")
+        let observer = NotificationCenter.default.addObserver(
+            forName: NPNotificationNames.backupDidFail,
+            object: sut,
+            queue: .main
+        ) { notification in
+            XCTAssertEqual(notification.userInfo?[NPNotificationNames.backupErrorKey] as? String,
+                           "snapshotTooLarge")
+            notificationExpectation.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        sut.registerDocument(document)
+        document.textContent = String(repeating: "x", count: NPBackupService.maxSnapshotBytes + 1)
+        document.updateChangeCount(.changeDone)
+
+        XCTAssertTrue(waitFor { self.sut.lastBackupError == .snapshotTooLarge })
+        XCTAssertEqual(self.backupContentText(), "")
+        wait(for: [notificationExpectation], timeout: 1.0)
+        sut.unregisterDocument(document)
+    }
+
+    /// 内容被替换后，带哈希的快照不能继续作为可恢复记录。
+    func testRecoverableItemsRejectsChangedSnapshotContent() throws {
+        let document = NPTextDocument()
+        sut.registerDocument(document)
+        document.textContent = "original snapshot"
+        document.updateChangeCount(.changeDone)
+        XCTAssertTrue(waitFor { self.backupContentText() == "original snapshot" })
+
+        let contentName = try XCTUnwrap(backupFiles().first(where: { $0.hasSuffix(".txt") }))
+        try "tampered snapshot".write(to: backupDirectory.appendingPathComponent(contentName),
+                                      atomically: true, encoding: .utf8)
+
+        XCTAssertTrue(sut.recoverableItems().isEmpty, "内容哈希不匹配的快照不应恢复")
+        sut.unregisterDocument(document)
+    }
+
     /// UT-BACKUP-002：未命名文档备份 —— recoverableItems 含未命名文档及其光标位置。
     func testUntitledDocumentBackupWithCursor() throws {
         let document = NPTextDocument()
@@ -89,6 +218,22 @@ final class NPBackupServiceTests: XCTestCase {
         XCTAssertEqual(item.encoding, .utf8)
         XCTAssertEqual(item.lineEnding, .lf)
         XCTAssertEqual(try String(contentsOf: item.backupContentURL, encoding: .utf8), "未命名内容")
+        sut.unregisterDocument(document)
+    }
+
+    /// 会话缓存不应覆盖原文件。
+    func testBackupDoesNotWriteBackToOriginalFile() throws {
+        let sourceDirectory = backupDirectory.appendingPathComponent("source", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        let originalURL = sourceDirectory.appendingPathComponent("original.txt")
+        try "original".write(to: originalURL, atomically: true, encoding: .utf8)
+        let document = try NPTextDocument(contentsOf: originalURL, ofType: "public.plain-text")
+        sut.registerDocument(document)
+        document.textContent = "edited"
+        document.updateChangeCount(.changeDone)
+
+        XCTAssertTrue(waitFor { self.backupContentText() == "edited" })
+        XCTAssertEqual(try String(contentsOf: originalURL, encoding: .utf8), "original")
         sut.unregisterDocument(document)
     }
 
@@ -238,6 +383,18 @@ final class NPBackupServiceTests: XCTestCase {
         XCTAssertTrue(waitFor { self.backupFiles().count == 2 })
         sut.unregisterDocument(document)
         XCTAssertTrue(backupFiles().isEmpty)
+    }
+
+    /// 注销后，已经排队的快照写入不能重新创建已删除的缓存。
+    func testUnregisterPreventsQueuedBackupFromReappearing() throws {
+        let document = NPTextDocument()
+        sut.registerDocument(document)
+        document.textContent = String(repeating: "queued", count: 100_000)
+        document.updateChangeCount(.changeDone)
+        sut.unregisterDocument(document)
+
+        XCTAssertTrue(waitFor { self.backupFiles().isEmpty },
+                      "注销后缓存必须保持删除状态")
     }
 
     /// 退出清理：只保留当前仍打开文档（已注册标签）的备份，删除历史关窗残留。

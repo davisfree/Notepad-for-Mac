@@ -47,7 +47,7 @@ final class NPTextDocument: NSDocument {
     /// 脏状态变化回调（标签未保存圆点同步）
     var onEditedStateChange: ((Bool) -> Void)?
 
-    /// 内容变化回调（自动保存备份触发点；由 `NPBackupService.registerDocument` 独占接入）
+    /// 内容变化回调（会话缓存触发点；由 `NPBackupService.registerDocument` 独占接入）
     var onContentDidChange: (() -> Void)?
 
     /// 显示名变更时触发回调（保存/重命名后同步标签与窗口标题）。

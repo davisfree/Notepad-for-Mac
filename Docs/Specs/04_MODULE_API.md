@@ -622,7 +622,6 @@ public final class NPPreferences: ObservableObject {
     // MARK: - 编辑
 
     @Published public var isWordWrapEnabled: Bool
-    @Published public var isAutoSaveEnabled: Bool
     @Published public var defaultEncoding: String.Encoding
     @Published public var defaultLineEnding: NPLineEnding
 
@@ -734,12 +733,12 @@ public final class NPUpdateService {
 ```swift
 import Foundation
 
-/// 自动保存与崩溃恢复服务（PRD FR-003、5.3 节：崩溃时丢失不超过 1 秒的编辑内容）
+/// 会话缓存与崩溃恢复服务（PRD FR-003、5.3 节：崩溃时丢失不超过 1 秒的编辑内容）
 public final class NPBackupService {
 
     public static let shared = NPBackupService()
 
-    /// 注册文档进行自动保存监控
+    /// 注册文档进行会话缓存监控
     public func registerDocument(_ document: NPTextDocument)
 
     /// 取消注册
@@ -770,9 +769,46 @@ public struct NPBackupItem {
     /// 换行符格式
     public let lineEnding: NPLineEnding
 }
+
+会话备份元数据还包含可选的 `schemaVersion`、`revision` 和 `contentHash` 字段。新格式恢复前校验
+内容 SHA-256；旧版本缺少这些可选字段时仍可读取。备份服务同时维护 `session-state.json`，用于区分
+正常退出和异常终止，不把缓存文件是否存在误作为崩溃判定依据。
+
+内容与 metadata 分别通过临时文件和原子替换提交；跨文件提交不是单一事务，恢复前始终以
+`contentHash` 校验两者一致性，不一致快照会被拒绝。
+
+读取旧版本 metadata 时，在内容和基础字段校验通过后会原子补写当前 schema；迁移写失败不阻断本次恢复。
+
+恢复冲突由 `NPBackupService.restoreDecision` 统一决策：比较内容后，以备份时间戳和原文件修改时间
+判断新旧，避免用较旧的会话快照覆盖用户在外部应用中的新修改。
+当原文件较新并因此保留原文件时，应用通过非模态系统通知提示用户。
+
+缓存写入还受单文档 10 MiB、目录总量 100 MiB 限制；失败通过 `NPBackupService.lastBackupError`
+暴露，失败不会清除文档脏状态，也不会覆盖原文件。服务同时发布
+`NPNotificationNames.backupDidFail`，`userInfo[NPNotificationNames.backupErrorKey]` 为稳定错误标识，
+供状态栏、日志或非模态提示订阅。
 ```
 
-### 5.4 NPShortcutService
+### 5.4 NPUserNotificationService
+
+用户可见提示的统一投递入口（基于 `UserNotifications`），非模态、不打断输入：
+
+```swift
+@MainActor
+public final class NPUserNotificationService {
+    public static let shared: NPUserNotificationService
+
+    /// 投递提示；通知中心不可用或未授权时降级为统一日志
+    public func deliver(title: String, body: String)
+}
+```
+
+- 首次投递时才请求授权（不在启动即弹系统授权框）；
+- 非 bundle 进程无法创建通知中心，此时直接降级为日志，不抛异常；
+- 同一标题在 60 秒冷却时间内只提示一次，避免连续失败造成通知轰炸；
+- 日志只含提示文案，不含文件路径与内容片段。
+
+### 5.5 NPShortcutService
 
 > 对应 `07_PROJECT_STRUCTURE.md` 2.6：`Services/NPShortcutService.swift`（PRD FR-024）
 
@@ -789,7 +825,7 @@ public final class NPShortcutService {
 }
 ```
 
-### 5.5 NPCrashReporter
+### 5.6 NPCrashReporter
 
 > 对应 `07_PROJECT_STRUCTURE.md` 2.6：`Services/Analytics/NPCrashReporter.swift`  
 > 隐私约束：崩溃日志匿名化后上传，**不含文件路径与内容片段**（`01_TECH_SPEC.md` 第 5 节）

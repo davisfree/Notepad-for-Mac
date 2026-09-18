@@ -39,7 +39,7 @@ A single **Universal Binary** runs on both Apple Silicon and Intel Macs.
 - **Encoding support** — UTF-8, UTF-16 LE/BE, UTF-32 LE/BE (with or without BOM), GB18030 (GBK/GB2312), Big5 and Windows-1252. Auto-detected on open (BOM + content heuristics) and switchable from the status bar.
 - **Line endings** — LF / CRLF / CR detected automatically, convert with one click.
 - **Find & Replace** — default case-insensitive (Windows 11 behavior), wrap-around, regular expressions, replace-all with a count, and Win11-style yellow/orange match highlighting.
-- **Auto-save & crash recovery** — session backups throttled to ≤ 1s; after a crash your tabs, content and cursor position are restored on next launch (lose at most 1 second of typing).
+- **Session cache & crash recovery** — edits are cached to local snapshots throttled to ≤ 1s; after a crash your tabs, content and cursor position are restored on next launch (lose at most 1 second of typing). The cache never overwrites your files — saving is always explicit.
 - **Large file handling** — files over 10 MB open read-only after a prompt, so your Mac never hangs.
 - **Print** — page setup and printing with centered filename header and "Page X of Y" footer.
 - **Touch Bar** support and **Shortcuts app** actions (macOS 13+).

@@ -19,7 +19,7 @@
 | 协议           | UpperCamelCase，仅委托协议后缀 `Delegate`；能力型协议按名词/`-able`/`-ing` 命名 | `NPEditorDelegate`, `NPEncodingDetector` |
 | 函数/方法      | lowerCamelCase，动词开头                   | `detect(from:)`, `saveToURL()`           |
 | 变量/常量      | lowerCamelCase                             | `currentEncoding`, `isDirty`             |
-| 布尔属性       | 以 `is`/`has`/`should` 开头                | `isAutoSaveEnabled`, `hasUnsavedChanges` |
+| 布尔属性       | 以 `is`/`has`/`should` 开头                | `isStatusBarVisible`, `hasUnsavedChanges` |
 | 私有属性       | 无前缀下划线，使用 `private` 修饰          | `private var backupTimer: Timer?`        |
 | 全局常量       | lowerCamelCase 或 enum case                | `let defaultFontSize = 12`               |
 | 回调闭包       | 以 `Handler`/`Completion` 结尾             | `saveCompletionHandler`                  |

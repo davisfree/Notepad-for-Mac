@@ -86,4 +86,28 @@ final class NPTextDocumentTests: XCTestCase {
         let expected = try XCTUnwrap("Line1\r\nLine2".data(using: .utf16LittleEndian))
         XCTAssertEqual(written, expected)
     }
+
+    /// 同步窗口标题不应清除文档与窗口的真实脏状态，保存菜单仍应可用。
+    @MainActor
+    func testWindowTitleSyncKeepsEditedState() {
+        let document = NPTextDocument()
+        document.textContent = "changed"
+        document.updateChangeCount(.changeDone)
+        let tabBarView = NPTabBarView()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                              styleMask: [.titled, .closable],
+                              backing: .buffered,
+                              defer: true)
+        let windowController = NPEditorWindowController(
+            window: window,
+            tabBarController: NPTabBarController(tabBar: tabBarView),
+            tabBarView: tabBarView
+        )
+        document.addWindowController(windowController)
+
+        windowController.synchronizeWindowTitleWithDocumentName()
+
+        XCTAssertTrue(document.isDocumentEdited)
+        XCTAssertTrue(window.isDocumentEdited)
+    }
 }

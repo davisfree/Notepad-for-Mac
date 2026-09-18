@@ -62,7 +62,6 @@ final class NPPreferences: ObservableObject {
         static let fontFamily = "fontFamily"
         static let fontSize = "fontSize"
         static let isWordWrapEnabled = "isWordWrapEnabled"
-        static let isAutoSaveEnabled = "isAutoSaveEnabled"
         static let defaultEncoding = "defaultEncoding"
         static let defaultLineEnding = "defaultLineEnding"
         static let isStatusBarVisible = "isStatusBarVisible"
@@ -96,11 +95,6 @@ final class NPPreferences: ObservableObject {
     /// 自动换行（默认开启，PRD FR-016）
     @Published var isWordWrapEnabled: Bool {
         didSet { persist(isWordWrapEnabled, forKey: Key.isWordWrapEnabled) }
-    }
-
-    /// 自动保存（默认开启，PRD FR-003）
-    @Published var isAutoSaveEnabled: Bool {
-        didSet { persist(isAutoSaveEnabled, forKey: Key.isAutoSaveEnabled) }
     }
 
     /// 新建文档默认编码（默认 UTF-8）
@@ -152,7 +146,6 @@ final class NPPreferences: ObservableObject {
         theme = NPTheme(rawValue: defaults.string(forKey: Key.theme) ?? "") ?? .system
         font = Self.loadFont(from: defaults)
         isWordWrapEnabled = (defaults.object(forKey: Key.isWordWrapEnabled) as? Bool) ?? true
-        isAutoSaveEnabled = (defaults.object(forKey: Key.isAutoSaveEnabled) as? Bool) ?? true
         if let raw = (defaults.object(forKey: Key.defaultEncoding) as? NSNumber)?.uintValue {
             defaultEncoding = String.Encoding(rawValue: raw)
         } else {
@@ -177,7 +170,6 @@ final class NPPreferences: ObservableObject {
         theme = .system
         font = Self.fallbackFont(family: "SF Mono", size: Self.defaultFontSize)
         isWordWrapEnabled = true
-        isAutoSaveEnabled = true
         defaultEncoding = .utf8
         defaultLineEnding = .lf
         isStatusBarVisible = true
@@ -200,7 +192,6 @@ final class NPPreferences: ObservableObject {
             ],
             "autoWrap": isWordWrapEnabled,
             "statusBar": isStatusBarVisible,
-            "autoSave": isAutoSaveEnabled,
             "defaultEncoding": Int(defaultEncoding.rawValue),
             "defaultLineEnding": defaultLineEnding.rawValue,
             "zoomLevel": defaultZoomLevel * 100.0,
@@ -231,9 +222,6 @@ final class NPPreferences: ObservableObject {
         }
         if let value = dictionary["statusBar"] as? Bool {
             isStatusBarVisible = value
-        }
-        if let value = dictionary["autoSave"] as? Bool {
-            isAutoSaveEnabled = value
         }
         if let value = dictionary["defaultEncoding"] as? NSNumber {
             defaultEncoding = String.Encoding(rawValue: value.uintValue)

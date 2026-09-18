@@ -85,6 +85,14 @@
 "Help.Window.Title" = "Notepad 輔助說明";
 "Help.Unavailable" = "輔助說明內容無法使用。";
 
+/* 工作階段快取 */
+"Backup.Error.Title" = "工作階段快取提示";
+"Backup.Error.SnapshotTooLarge" = "文件過大，無法寫入工作階段快取。";
+"Backup.Error.StorageLimitExceeded" = "工作階段快取空間已滿，原始檔案未被修改。";
+"Backup.Error.WriteFailed" = "無法快取最新編輯內容，原始檔案未被修改。";
+"Backup.RestoreConflict.Title" = "工作階段恢復衝突";
+"Backup.RestoreConflict.Message" = "原始檔案更新時間較晚，本次恢復保留了原始檔案內容。";
+
 /* 状态栏 */
 "StatusBar.LineCol" = "第 %lld 行，第 %lld 列";
 "StatusBar.CharacterCount" = "%@ 個字元";

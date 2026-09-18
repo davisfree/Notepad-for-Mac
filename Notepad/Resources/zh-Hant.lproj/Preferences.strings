@@ -8,7 +8,6 @@
 /* 一般標籤頁 */
 "Preferences.General.DisplayLanguage" = "顯示語言";
 "Preferences.General.Theme" = "主題";
-"Preferences.General.AutoSave" = "自動儲存";
 "Preferences.General.ShowStatusBar" = "顯示狀態列";
 
 /* 編輯器標籤頁 */

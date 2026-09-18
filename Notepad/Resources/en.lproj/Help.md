@@ -5,7 +5,7 @@
 - **New Tab** `⌘N`, **New Window** `⇧⌘N`, **Open** `⌘O`, **Save** `⌘S`, **Save As** `⇧⌘S`.
 - Opening a file automatically detects its **encoding** and **line ending**, shown on the right of the status bar; click to change them.
 - **Close Tab** `⌘W`; **Close Window** `⇧⌘W`.
-- **Auto Save** is on by default: after quitting or a crash, relaunching restores all tabs and cursor positions.
+- **Session cache** is always on: after quitting or a crash, relaunching restores all tabs and cursor positions. The cache never overwrites your files — press `⌘S` to save.
 
 ## Common Actions
 

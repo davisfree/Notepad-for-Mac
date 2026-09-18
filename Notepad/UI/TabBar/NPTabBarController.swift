@@ -105,7 +105,7 @@ final class NPTabBarController: NPTabBarDelegate {
         selectTab(at: model.selectedIndex)
     }
 
-    /// 请求关闭标签（开关 ON 直接关闭——内容已在会话备份，01 §3.5；OFF 经 canClose 弹确认）。
+    /// 请求关闭标签（有未保存内容时经 canClose 弹确认；会话缓存不替代用户确认）。
     /// - Parameters:
     ///   - index: 标签索引
     ///   - completion: 完成回调（是否实际关闭）
@@ -115,8 +115,8 @@ final class NPTabBarController: NPTabBarDelegate {
             return
         }
         let document = entries[index].document
-        // 未修改或空内容（含"输入后删光"）：与新建文档无异，直接关闭不提示
-        guard document.isDocumentEdited, !document.textContent.isEmpty else {
+                // 未修改或空内容（含"输入后删光"）：与新建文档无异，直接关闭不提示
+                guard document.isDocumentEdited, !document.textContent.isEmpty else {
             closeTabImmediately(at: index)
             completion?(true)
             return
@@ -353,7 +353,7 @@ final class NPTabBarController: NPTabBarDelegate {
     func detachAllTabsForWindowClose() {
         for entry in entries {
             let document = entry.document
-            // 尾缘窗口内的编辑先落盘（备份始终写；原文件写回仅自动保存 ON）
+            // 尾缘窗口内的编辑先落盘（缓存始终写；原文件只由显式保存更新）
             NPBackupService.shared.flushPendingWrites(for: document)
             for windowController in document.windowControllers {
                 document.removeWindowController(windowController)

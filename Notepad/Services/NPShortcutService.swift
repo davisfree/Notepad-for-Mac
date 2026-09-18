@@ -11,7 +11,7 @@ import AppKit
 import AppIntents
 #endif
 
-/// 快捷指令（Shortcuts App）集成服务（PRD FR-024，04 §5.4）。
+/// 快捷指令（Shortcuts App）集成服务（PRD FR-024，04 §5.5）。
 ///
 /// 方案选择：**App Intents + `if #available(macOS 13, *)` 优雅降级**。
 /// App Shortcuts 是现代 Shortcuts 集成（免注册即出现在快捷指令 App），

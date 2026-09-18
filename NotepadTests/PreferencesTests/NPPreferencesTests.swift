@@ -39,7 +39,6 @@ final class NPPreferencesTests: XCTestCase {
         XCTAssertEqual(sut.theme, .system)
         XCTAssertEqual(sut.font.pointSize, 12.0)
         XCTAssertTrue(sut.isWordWrapEnabled)
-        XCTAssertTrue(sut.isAutoSaveEnabled)
         XCTAssertEqual(sut.defaultEncoding, .utf8)
         XCTAssertEqual(sut.defaultLineEnding, .lf)
         XCTAssertTrue(sut.isStatusBarVisible)
@@ -76,7 +75,6 @@ final class NPPreferencesTests: XCTestCase {
     /// export → import JSON round-trip 全字段一致。
     func testExportImportRoundTrip() throws {
         sut.theme = .dark
-        sut.isAutoSaveEnabled = false
         sut.defaultZoomLevel = 2.0
         sut.displayLanguage = .traditionalChinese
 
@@ -86,7 +84,6 @@ final class NPPreferencesTests: XCTestCase {
         try target.import(from: data)
 
         XCTAssertEqual(target.theme, .dark)
-        XCTAssertFalse(target.isAutoSaveEnabled)
         XCTAssertEqual(target.defaultZoomLevel, 2.0)
         XCTAssertEqual(target.displayLanguage, .traditionalChinese)
     }

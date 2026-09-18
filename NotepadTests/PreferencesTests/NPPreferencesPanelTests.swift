@@ -61,7 +61,6 @@ final class NPPreferencesPanelTests: XCTestCase {
     func testGeneralControlsReflectPreferences() {
         preferences.displayLanguage = .simplifiedChinese
         preferences.theme = .dark
-        preferences.isAutoSaveEnabled = false
         preferences.isStatusBarVisible = false
 
         let viewController = NPGeneralPreferencesViewController(preferences: preferences)
@@ -71,7 +70,6 @@ final class NPPreferencesPanelTests: XCTestCase {
                        NPLanguage.simplifiedChinese.rawValue)
         XCTAssertEqual(viewController.themePopup.selectedItem?.representedObject as? String,
                        NPTheme.dark.rawValue)
-        XCTAssertEqual(viewController.autoSaveCheckbox.state, .off)
         XCTAssertEqual(viewController.statusBarCheckbox.state, .off)
     }
 
@@ -101,20 +99,16 @@ final class NPPreferencesPanelTests: XCTestCase {
         generalVC.languageDidChange(generalVC.languagePopup)
         selectItem(in: generalVC.themePopup, rawValue: NPTheme.light.rawValue)
         generalVC.themeDidChange(generalVC.themePopup)
-        generalVC.autoSaveCheckbox.state = .off
-        generalVC.autoSaveDidChange(generalVC.autoSaveCheckbox)
         generalVC.statusBarCheckbox.state = .off
         generalVC.statusBarDidChange(generalVC.statusBarCheckbox)
 
         XCTAssertEqual(preferences.displayLanguage, .english)
         XCTAssertEqual(preferences.theme, .light)
-        XCTAssertFalse(preferences.isAutoSaveEnabled)
         XCTAssertFalse(preferences.isStatusBarVisible)
         // 持久化到注入的 suite（新实例读回一致）
         let reloaded = NPPreferences(defaults: testDefaults)
         XCTAssertEqual(reloaded.displayLanguage, .english)
         XCTAssertEqual(reloaded.theme, .light)
-        XCTAssertFalse(reloaded.isAutoSaveEnabled)
         XCTAssertFalse(reloaded.isStatusBarVisible)
     }
 
@@ -187,19 +181,17 @@ final class NPPreferencesPanelTests: XCTestCase {
 
     /// resetToDefaults 后两页控件回默认（经 preferencesDidChange 通知刷新）。
     func testResetToDefaultsRefreshesControls() {
-        preferences.isAutoSaveEnabled = false
         preferences.isStatusBarVisible = false
         preferences.isWordWrapEnabled = false
         preferences.defaultEncoding = .big5
         preferences.defaultLineEnding = .crlf
         preferences.defaultZoomLevel = 2.0
         pumpMainActor()
-        XCTAssertEqual(generalVC.autoSaveCheckbox.state, .off)
+        XCTAssertEqual(generalVC.statusBarCheckbox.state, .off)
 
         preferences.resetToDefaults()
         pumpMainActor()
 
-        XCTAssertEqual(generalVC.autoSaveCheckbox.state, .on)
         XCTAssertEqual(generalVC.statusBarCheckbox.state, .on)
         XCTAssertEqual(generalVC.languagePopup.selectedItem?.representedObject as? String,
                        NPLanguage.system.rawValue)

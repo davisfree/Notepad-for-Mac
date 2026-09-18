@@ -56,7 +56,7 @@ final class NPDocumentController: NSDocumentController {
     /// 系统退出流程**先于** `applicationShouldTerminate` 发起未保存文稿复查
     /// （探针实测时序：`reviewUnsavedDocuments` → `closeAllDocuments` →
     /// 逐文档 `canClose` 保存面板），AppDelegate 的清脏在该复查之后才执行，
-    /// 无法拦截弹窗。此处先统一落盘待写内容（会话备份始终写，原文件写回仅自动保存 ON）
+    /// 无法拦截弹窗。此处先统一落盘待写内容（会话备份始终写，原文件只由显式保存更新）
     /// 并清脏，再走系统默认复查——此时无任何脏文档，`super` 既不会弹"审查未保存文稿"
     /// 警报，`closeAllDocuments` 也不会逐文档弹保存面板。
     /// 未保存状态由磁盘备份承载，下次启动经会话恢复还原并重新标脏。

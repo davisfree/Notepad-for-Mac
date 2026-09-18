@@ -8,7 +8,6 @@
 /* 通用标签页 */
 "Preferences.General.DisplayLanguage" = "显示语言";
 "Preferences.General.Theme" = "主题";
-"Preferences.General.AutoSave" = "自动保存";
 "Preferences.General.ShowStatusBar" = "显示状态栏";
 
 /* 编辑器标签页 */
