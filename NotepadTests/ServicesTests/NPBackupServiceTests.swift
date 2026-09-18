@@ -125,7 +125,7 @@ final class NPBackupServiceTests: XCTestCase {
         let metadataURL = backupDirectory.appendingPathComponent("\(legacyID.uuidString).json")
         let data = try Data(contentsOf: metadataURL)
         let metadata = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(metadata["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(metadata["schemaVersion"] as? Int, NPBackupService.currentSchemaVersion)
         XCTAssertEqual(metadata["revision"] as? Int, 0)
         XCTAssertNotNil(metadata["contentHash"] as? String)
     }

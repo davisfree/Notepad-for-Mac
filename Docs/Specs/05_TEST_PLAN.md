@@ -118,6 +118,8 @@
 | UT-BACKUP-001 | 节流间隔         | 连续快速编辑，观测备份写盘时间戳         | 写入节流间隔 ≤ 1s                          | P0     |
 | UT-BACKUP-002 | 未命名文档备份   | 新建"无标题"文档输入内容，调用 `recoverableItems()` | 返回的 `[NPBackupItem]` 含该未命名文档及其光标位置 | P0     |
 | UT-BACKUP-003 | 过期清理         | 构造修改时间为 7 天前的备份项            | 过期备份被清理，不出现在 `recoverableItems()` | P1     |
+| UT-BACKUP-004 | 原文件 bookmark  | 文件型文档注册后检查备份元数据           | 元数据含 `originalFileBookmark`（非沙盒宿主为普通 bookmark） | P0     |
+| UT-BACKUP-005 | 恢复保留文件关联 | 构造记录：原路径不可读 + bookmark 有效   | 恢复为文件型文档（标题 = 原文件名），而不是"未命名" | P0     |
 
 ### 2.7 崩溃报告模块
 

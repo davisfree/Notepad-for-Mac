@@ -772,7 +772,24 @@ public final class NPBackupService {
     /// （超期备份、原子写入临时残留、孤儿单边文件、元数据损坏的记录）。
     /// 启动时以 recoverableRecords() 的结果为白名单调用
     public func pruneInvalidBackupFiles(keeping validBackupIDs: Set<UUID>)
+
+    /// 当前元数据格式版本（v3 起记录原文件 security-scoped bookmark）
+    public static let currentSchemaVersion: Int
+
+    /// 生成原文件的 security-scoped bookmark（base64；无原文件或创建失败时 nil）
+    public static func bookmarkBase64(for document: NPTextDocument) -> String?
+
+    /// 解析原文件 URL：优先 bookmark（沙盒重启后仍可访问），回落路径
+    public static func resolveFileURL(path: String?, bookmark: Data?) -> URL?
 }
+```
+
+- 元数据（`<UUID>.json`）字段：`schemaVersion` / `originalFilePath` / `originalFileBookmark`（base64，
+  沙盒下重新取得原文件读写权限所需）/ `cursorPosition` / `encodingRawValue` / `lineEndingRawValue` /
+  `windowGroupID` / `tabIndex` / `timestamp` / `revision` / `contentHash`。
+- **沙盒约束**：`com.apple.security.files.user-selected.read-write` 的授权只对当前进程有效，
+  仅存路径会导致重启恢复时打不开原文件（退化为"未命名"文档，内容仍在）；因此元数据必须同时记录
+  security-scoped bookmark，恢复时先 `resolveFileURL` 再用 `NSDocument(contentsOf:)` 打开。
 
 /// 崩溃恢复项：描述一份可恢复的备份
 public struct NPBackupItem {

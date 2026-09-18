@@ -21,6 +21,8 @@ struct NPBackupItem {
     let encoding: String.Encoding
     /// 换行符格式
     let lineEnding: NPLineEnding
+    /// 原文件的 security-scoped bookmark（沙盒下重启后重新获得读写权限所需；nil = 无）
+    let originalFileBookmark: Data?
 }
 
 /// 备份元数据（JSON 序列化；`NPBackupItem` 之外的会话归属信息仅存于元数据）。
@@ -45,6 +47,8 @@ struct NPBackupMetadata: Codable {
     var revision: UInt64?
     /// UTF-8 内容的 SHA-256；旧格式缺失时跳过校验
     var contentHash: String?
+    /// 原文件的 security-scoped bookmark（base64）；旧格式缺失时仅依赖路径
+    var originalFileBookmark: String?
 }
 
 /// 会话生命周期标记。`cleanShutdown == false` 表示上次进程未完成正常退出流程。
@@ -374,6 +378,58 @@ final class NPBackupService {
 
     // MARK: - 恢复决策（纯函数）
 
+    /// 当前元数据格式版本（v3 起记录原文件 security-scoped bookmark）。
+    static let currentSchemaVersion = 3
+
+    /// 生成原文件的 security-scoped bookmark 并做 base64 编码。
+    ///
+    /// 沙盒的"用户选择文件"权限只对当前进程有效：仅记录路径时，重启恢复会因沙盒拒绝
+    /// 而打不开原文件，只能退化为"未命名"文档（内容在、文件名丢失）。
+    /// 非沙盒环境（如 swiftc 直编 / 测试宿主）无法创建 security-scoped bookmark，
+    /// 此时回落普通 bookmark；两者都失败返回 nil（恢复时继续依赖路径）。
+    /// - Parameter document: 目标文档
+    /// - Returns: base64 字符串（无原文件或创建失败时为 nil）
+    static func bookmarkBase64(for document: NPTextDocument) -> String? {
+        guard let fileURL = document.fileURL else {
+            return nil
+        }
+        let data = (try? fileURL.bookmarkData(options: [.withSecurityScope],
+                                              includingResourceValuesForKeys: nil,
+                                              relativeTo: nil))
+            ?? (try? fileURL.bookmarkData(options: [],
+                                          includingResourceValuesForKeys: nil,
+                                          relativeTo: nil))
+        return data?.base64EncodedString()
+    }
+
+    /// 解析原文件 URL：优先 security-scoped bookmark（沙盒重启后仍可访问），失败回落路径。
+    /// - Parameters:
+    ///   - path: 元数据记录的原文件路径
+    ///   - bookmark: 元数据记录的 bookmark（已 base64 解码）
+    /// - Returns: 可用于打开文档的 URL（无原文件时为 nil）
+    static func resolveFileURL(path: String?, bookmark: Data?) -> URL? {
+        if let bookmark {
+            var isStale = false
+            if let url = try? URL(resolvingBookmarkData: bookmark,
+                                  options: [.withSecurityScope],
+                                  relativeTo: nil,
+                                  bookmarkDataIsStale: &isStale) {
+                // 沙盒扩展必须显式开启，且恢复出的文档整个会话都要写原文件，
+                // 故此处不配对 stop（访问权随进程结束释放）。
+                _ = url.startAccessingSecurityScopedResource()
+                return url
+            }
+            // 非沙盒环境（测试宿主 / swiftc 直编）记录的是普通 bookmark
+            if let url = try? URL(resolvingBookmarkData: bookmark,
+                                  options: [],
+                                  relativeTo: nil,
+                                  bookmarkDataIsStale: &isStale) {
+                return url
+            }
+        }
+        return path.map { URL(fileURLWithPath: $0) }
+    }
+
     /// 已存盘文档恢复决策：备份内容与原文件内容不一致 → 用备份内容并标脏（Win11 语义）。
     /// - Parameters:
     ///   - backupContent: 备份内容
@@ -452,18 +508,7 @@ final class NPBackupService {
             postBackupFailure(.snapshotTooLarge)
             return
         }
-        let metadata = NPBackupMetadata(
-            schemaVersion: 2,
-            originalFilePath: document.fileURL?.path,
-            cursorPosition: registration.cursorPosition,
-            encodingRawValue: document.currentEncoding.rawValue,
-            lineEndingRawValue: document.currentLineEnding.rawValue,
-            windowGroupID: registration.windowGroupID.uuidString,
-            tabIndex: registration.tabIndex,
-            timestamp: Date().timeIntervalSince1970,
-            revision: revision,
-            contentHash: Self.contentHash(for: content)
-        )
+        let metadata = makeMetadata(for: document, registration: registration, content: content)
         let directory = backupDirectory
         writeQueue.async { [weak self] in
             do {
@@ -496,6 +541,29 @@ final class NPBackupService {
     }
 
     // MARK: - 失败上报
+
+    /// 组装备份元数据（含原文件路径与 security-scoped bookmark，供会话恢复重建文件关联）。
+    /// - Parameters:
+    ///   - document: 目标文档
+    ///   - registration: 该文档的注册信息
+    ///   - content: 待写入的内容（用于内容摘要）
+    /// - Returns: 元数据
+    private func makeMetadata(for document: NPTextDocument, registration: Registration,
+                              content: String) -> NPBackupMetadata {
+        NPBackupMetadata(
+            schemaVersion: Self.currentSchemaVersion,
+            originalFilePath: document.fileURL?.path,
+            cursorPosition: registration.cursorPosition,
+            encodingRawValue: document.currentEncoding.rawValue,
+            lineEndingRawValue: document.currentLineEnding.rawValue,
+            windowGroupID: registration.windowGroupID.uuidString,
+            tabIndex: registration.tabIndex,
+            timestamp: Date().timeIntervalSince1970,
+            revision: registration.revision,
+            contentHash: Self.contentHash(for: content),
+            originalFileBookmark: Self.bookmarkBase64(for: document)
+        )
+    }
 
     private func postBackupFailure(_ error: NPBackupError) {
         NotificationCenter.default.post(

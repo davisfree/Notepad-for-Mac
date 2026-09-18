@@ -122,8 +122,9 @@ extension NPBackupService {
         if let originalFilePath = metadata.originalFilePath, originalFilePath.isEmpty {
             return nil
         }
-        if metadata.schemaVersion != 2 || metadata.revision == nil || metadata.contentHash == nil {
-            metadata.schemaVersion = 2
+        if metadata.schemaVersion != Self.currentSchemaVersion || metadata.revision == nil
+            || metadata.contentHash == nil {
+            metadata.schemaVersion = Self.currentSchemaVersion
             metadata.revision = metadata.revision ?? 0
             metadata.contentHash = Self.contentHash(for: content)
             migrateMetadata(metadata, metadataFileName: metadataFileName)
@@ -133,7 +134,8 @@ extension NPBackupService {
             originalFileURL: metadata.originalFilePath.map { path in URL(fileURLWithPath: path) },
             cursorPosition: metadata.cursorPosition,
             encoding: String.Encoding(rawValue: metadata.encodingRawValue),
-            lineEnding: NPLineEnding(rawValue: metadata.lineEndingRawValue) ?? .lf
+            lineEnding: NPLineEnding(rawValue: metadata.lineEndingRawValue) ?? .lf,
+            originalFileBookmark: metadata.originalFileBookmark.flatMap { Data(base64Encoded: $0) }
         )
         return NPBackupRecord(item: item, windowGroupID: windowGroupID,
                               tabIndex: metadata.tabIndex, timestamp: metadata.timestamp)

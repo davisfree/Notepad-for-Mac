@@ -55,7 +55,12 @@ extension AppDelegate {
     /// - Returns: 恢复的文档（原文件与备份均不可读时为 nil）
     private func restoreDocument(for record: NPBackupRecord) -> NPTextDocument? {
         let backupContent = try? String(contentsOf: record.item.backupContentURL, encoding: .utf8)
-        guard let originalFileURL = record.item.originalFileURL else {
+        // 原文件位置：优先 security-scoped bookmark（沙盒下重启后路径已不可读），回落路径。
+        // 两者都拿不到才是真正的"未命名文档"。
+        guard let originalFileURL = NPBackupService.resolveFileURL(
+            path: record.item.originalFileURL?.path,
+            bookmark: record.item.originalFileBookmark
+        ) else {
             // 未命名文档：恢复备份内容与光标；仅非空内容标脏（空文档与新建无异，不应提示未保存）
             guard let document = try? makeTrackedUntitledDocument(), let backupContent else {
                 return nil
@@ -66,10 +71,10 @@ extension AppDelegate {
             }
             return document
         }
-        // 已存盘文档：从原路径打开
+        // 已存盘文档：从原位置打开（bookmark 已开启沙盒访问权）
         guard let document = try? NPTextDocument(contentsOf: originalFileURL,
                                                  ofType: "public.plain-text") else {
-            // 原文件已丢失：退化为未命名文档 + 备份内容；仅非空内容标脏
+            // 原文件已丢失或不可访问：退化为未命名文档 + 备份内容；仅非空内容标脏
             guard let fallback = try? makeTrackedUntitledDocument(), let backupContent else {
                 return nil
             }
