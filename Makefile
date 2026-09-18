@@ -1,7 +1,8 @@
 .PHONY: build test lint format clean release
 
 build:
-	xcodebuild -scheme Notepad -configuration Debug
+	xcodebuild -scheme Notepad -configuration Debug build
+	@echo "==> 产物: build/Debug/Notepad.app"
 
 test:
 	xcodebuild test -scheme Notepad -destination 'platform=macOS'
