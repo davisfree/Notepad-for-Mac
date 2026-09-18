@@ -100,7 +100,8 @@ enum NPWindowFactory {
         let windowController = NPEditorWindowController(window: window,
                                                         tabBarController: tabBarController,
                                                         tabBarView: tabBarView)
-        windowController.addTab(for: document)
+        // 新窗口的首个标签：空栏时 leading 即索引 0（显式声明，不再依赖隐式追加）
+        windowController.addTab(for: document, position: .leading)
         windowController.shouldCascadeWindows = true
         window.center()
         return windowController

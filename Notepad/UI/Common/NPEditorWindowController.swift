@@ -69,12 +69,12 @@ final class NPEditorWindowController: NSWindowController {
 
     // MARK: - 标签管理
 
-    /// 添加标签（⌘T / 打开文件路由经此进入当前窗口）；大文件只读模式提示并禁用编辑。
+    /// 添加标签（⌘N 新建标签页 / 打开文件路由经此进入当前窗口）；大文件只读模式提示并禁用编辑。
     /// - Parameters:
     ///   - document: 文档
-    ///   - position: 插入位置（`⌘N` 新建标签页传 `.leading`，其余默认追加到最右端）
+    ///   - position: 插入位置（新建文档传 `.leading` 落在最左端，其余追加到最右端）
     func addTab(for document: NPTextDocument,
-                position: NPTabBarController.InsertionPosition = .trailing) {
+                position: NPTabBarController.InsertionPosition) {
         tabBarController.addTab(for: document, position: position)
         guard document.isReadOnly else {
             return

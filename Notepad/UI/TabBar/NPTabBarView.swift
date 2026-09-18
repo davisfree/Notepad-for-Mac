@@ -143,13 +143,9 @@ final class NPTabBarView: NSView {
 
     // MARK: - 标签管理
 
-    /// 添加标签（追加到最右端）。
-    /// - Parameter tab: 标签项
-    func addTab(_ tab: NPTabItem) {
-        insertTab(tab, at: tabs.count)
-    }
-
     /// 在指定位置插入标签（越界夹取到 `0...count`）。
+    ///
+    /// 唯一的标签入口：新建文档传 `at: 0`（最左端），打开文件/会话恢复等追加传 `at: tabs.count`。
     /// - Parameters:
     ///   - tab: 标签项
     ///   - index: 插入位置（`0` = 最左端）
@@ -271,7 +267,7 @@ final class NPTabBarView: NSView {
         tabs = []
         tabViews = []
         for tab in newTabs {
-            addTab(tab)
+            insertTab(tab, at: tabs.count)
         }
         layoutCards()
         needsLayout = true

@@ -44,11 +44,14 @@ final class NPTabWindowManager {
     // MARK: - 路由
 
     /// 窗口工厂入口（`NPTextDocument.windowControllerFactory` 注入目标）。
+    ///
+    /// AppKit 展示文档时经此进入（`NSDocument.makeWindowControllers`）：**未命名新文档按"新建标签页"
+    /// 语义落在最左端**（`insertTab(0)`），已存盘文件追加到最右端。
     /// - Parameter document: 文档
     /// - Returns: 新窗口控制器；若文档已作为标签加入现有窗口则返回 `nil`
     func acquireWindowController(for document: NPTextDocument) -> NSWindowController? {
         if preferExistingWindow, let current = activeWindowController() {
-            current.addTab(for: document)
+            current.addTab(for: document, position: document.fileURL == nil ? .leading : .trailing)
             current.window?.makeKeyAndOrderFront(nil)
             return nil
         }
@@ -57,12 +60,19 @@ final class NPTabWindowManager {
         return windowController
     }
 
-    /// 新建文档入口（⌘T）：当前窗口加标签，无窗口则新窗口。
+    /// 新建文档入口（⌘N 新建标签页 / 快捷指令"新建文档"）：**固定插入当前窗口标签组的最左端**。
+    /// - Parameter document: 文档
+    func openNewDocument(_ document: NPTextDocument) {
+        addDocumentAsTabOrNewWindow(document, position: .leading)
+    }
+
+    /// 新建/重建文档入口：当前窗口加标签，无窗口则新窗口。
     /// - Parameters:
     ///   - document: 文档（已注册到 `NSDocumentController`，未经 `makeWindowControllers`）
-    ///   - position: 标签插入位置（新文档传 `.leading`：新建标签页落在最左端）
+    ///   - position: 标签插入位置。新建文档走 `openNewDocument(_:)`（固定 `.leading`）；
+    ///     Dock 重开重建已有关窗文档传 `.trailing` 以保持原有顺序
     func addDocumentAsTabOrNewWindow(_ document: NPTextDocument,
-                                     position: NPTabBarController.InsertionPosition = .trailing) {
+                                     position: NPTabBarController.InsertionPosition) {
         if let current = activeWindowController() {
             current.addTab(for: document, position: position)
             current.window?.makeKeyAndOrderFront(nil)

@@ -76,7 +76,7 @@ final class NPTabBarViewLayoutTests: XCTestCase {
             let document = NPTextDocument()
             added.append(document)
             documents.append(document)
-            windowController.addTab(for: document)
+            windowController.addTab(for: document, position: .trailing)
         }
 
         let frames = bar.subviews.map(\.frame)
@@ -99,7 +99,7 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let bar = windowController.tabBarController.tabBar
         let document = NPTextDocument()
         documents.append(document)
-        windowController.addTab(for: document)
+        windowController.addTab(for: document, position: .trailing)
         let beforeFrames = bar.subviews.map(\.frame)
 
         bar.removeTab(at: 0)
@@ -116,6 +116,8 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let window = try makeWindowWithFirstTab()
         let bar = windowController.tabBarController.tabBar
         let existingDocument = try XCTUnwrap(windowController.tabBarController.entries.first?.document)
+        let expectedWindowCount = NPTabWindowManager.shared.windowControllers.count
+        let existingIDs = windowController.tabBarController.entries.map { ObjectIdentifier($0.document) }
 
         // 让路由把本窗口认作"最近活跃窗口"（测试宿主没有 key/main 窗口）
         NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
@@ -136,6 +138,57 @@ final class NPTabBarViewLayoutTests: XCTestCase {
                              "原标签应移到新建标签右侧")
         XCTAssertEqual(bar.selectedIndex, 0, "新建标签应被选中（最左端）")
         XCTAssertTrue(entries[1].document === existingDocument, "原标签应后移一位而不是被替换")
+        // 不得出现同一文档的重复标签（另一条路径也插过一次），也不得新开窗口
+        let newDocuments = entries.map(\.document).filter { !existingIDs.contains(ObjectIdentifier($0)) }
+        XCTAssertEqual(newDocuments.count, 1, "⌘N 只应新增一个文档标签，不得重复")
+        XCTAssertTrue(entries[0].document === newDocuments[0], "新增文档应落在最左端")
+        XCTAssertEqual(NPTabWindowManager.shared.windowControllers.count, expectedWindowCount,
+                       "⌘N 应在当前窗口内加标签，不得新开窗口")
+    }
+
+    /// 工厂路径（AppKit `makeWindowControllers` → `acquireWindowController`）：
+    /// **未命名新文档必须落在最左端**（`insertTab(0)`），不能追加到最右。
+    func testFactoryPathPutsUntitledDocumentLeftmost() throws {
+        let window = try makeWindowWithFirstTab()
+        let bar = windowController.tabBarController.tabBar
+
+        NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        let document = NPTextDocument()
+        documents.append(document)
+        XCTAssertNil(document.fileURL, "本用例针对无标题新文档")
+
+        let created = NPTabWindowManager.shared.acquireWindowController(for: document)
+        XCTAssertNil(created, "应作为标签加入现有窗口，而不是自建窗口控制器")
+
+        let entries = windowController.tabBarController.entries
+        XCTAssertEqual(entries.count, 2, "只应增加一个标签")
+        XCTAssertTrue(entries[0].document === document, "未命名新文档必须落在索引 0（最左端）")
+        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
+    }
+
+    /// 工厂路径：**已存盘文件仍追加到最右端**（打开文件语义不变）。
+    func testFactoryPathAppendsOpenedFileRightmost() throws {
+        let window = try makeWindowWithFirstTab()
+        let bar = windowController.tabBarController.tabBar
+
+        NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        let fileURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("np-tab-factory-\(UUID().uuidString).txt")
+        try "opened".write(to: fileURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        let document = try NPTextDocument(contentsOf: fileURL, ofType: "public.plain-text")
+        documents.append(document)
+
+        _ = NPTabWindowManager.shared.acquireWindowController(for: document)
+
+        let entries = windowController.tabBarController.entries
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertTrue(entries.last?.document === document, "已存盘文件应追加到最右端")
+        XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX)
     }
 
     // MARK: - 辅助

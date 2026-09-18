@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import os
 
 /// 标签栏控制器（UI 层组合根，非契约类型）。
 ///
@@ -71,6 +72,12 @@ final class NPTabBarController: NPTabBarDelegate {
     /// 状态栏隐藏状态（应用到全部标签，并对新标签生效）
     private var statusBarsHidden = false
 
+    #if DEBUG
+    /// 标签插入路径诊断日志（DEBUG 专用，category `tabs`）
+    private static let tabLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.notepadmac.Notepad",
+                                      category: "tabs")
+    #endif
+
     // MARK: - 初始化
 
     /// 创建控制器并接管标签栏委托。
@@ -95,32 +102,48 @@ final class NPTabBarController: NPTabBarDelegate {
     // MARK: - 标签管理
 
     /// 添加标签（装配内容、接入文档状态回调、注册会话备份、选中新标签）。
+    ///
+    /// 落点由调用方**显式声明**（`position` 无默认值）：新建文档传 `.leading`（落在最左端），
+    /// 打开文件 / 会话恢复 / 复制标签传 `.trailing`（追加到最右端）。
     /// - Parameters:
     ///   - document: 文档
-    ///   - position: 插入位置（默认追加到最右端；`⌘N` 新建标签页传 `.leading` 落在最左端）
-    func addTab(for document: NPTextDocument, position: InsertionPosition = .trailing) {
+    ///   - position: 插入位置
+    func addTab(for document: NPTextDocument, position: InsertionPosition) {
         guard let makeEntry else {
             return
         }
         let entry = makeEntry(document)
+        let index: Int
         switch position {
         case .trailing:
             entries.append(entry)
             model.append(entry.identifier)
+            index = entries.count - 1
         case .leading:
             entries.insert(entry, at: 0)
             model.insert(entry.identifier, at: 0)
+            index = 0
         }
         wireDocumentCallbacks(entry)
-        tabBar.insertTab(makeTabItem(for: entry), at: model.selectedIndex)
+        tabBar.insertTab(makeTabItem(for: entry), at: index)
         entry.statusBarController.statusBar.isHidden = statusBarsHidden
         NPBackupService.shared.registerDocument(document)
         // 前置插入会让既有标签的会话序号整体后移，故按当前顺序重登记全部标签
-        for (index, item) in entries.enumerated() {
+        for (tabIndex, item) in entries.enumerated() {
             NPBackupService.shared.noteWindowContext(windowGroupID: windowGroupID,
-                                                     tabIndex: index, for: item.document)
+                                                     tabIndex: tabIndex, for: item.document)
         }
         selectTab(at: model.selectedIndex)
+        #if DEBUG
+        // 路径诊断：新建标签页应只产生一条 leading 记录；若同时出现 acquireWindowController 的
+        // trailing，说明 AppKit 工厂路径也在给同一文档加标签（重复标签隐患）
+        // 用 notice 级（debug 级不会被 `log show` 落盘，事后无法取证）
+        Self.tabLog.notice("""
+        addTab pos=\(String(describing: position), privacy: .public) idx=\(index) \
+        untitled=\(document.fileURL == nil) entries=\(self.entries.count) \
+        barTabs=\(self.tabBar.tabs.count) windowControllers=\(document.windowControllers.count)
+        """)
+        #endif
     }
 
     /// 请求关闭标签（有未保存内容时经 canClose 弹确认；会话缓存不替代用户确认）。
@@ -287,7 +310,7 @@ final class NPTabBarController: NPTabBarDelegate {
             }
             duplicate.textContent = source.textContent
             duplicate.updateChangeCount(.changeDone)
-            addTab(for: duplicate)
+            addTab(for: duplicate, position: .trailing)
         } catch {
             // 创建失败：无恢复路径，静默放弃（NSDocumentController 已记录错误）
         }
