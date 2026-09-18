@@ -63,16 +63,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NPTextDocument.windowControllerFactory = { document in
             NPTabWindowManager.shared.acquireWindowController(for: document)
         }
+        // 新建文档创建器注入：菜单"新建标签页（⌘N）"与标签栏右端"+"按钮共用同一流程
+        NPTabWindowManager.shared.makeNewDocument = { [weak self] in
+            guard let self else {
+                return nil
+            }
+            return try? self.makeTrackedUntitledDocument()
+        }
         // 快捷指令动作路由注入（Services 层不经 UI 层类型，08 §3）
         NPShortcutService.shared.openFileHandler = { url in
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
         NPShortcutService.shared.createDocumentHandler = { [weak self] in
-            guard let document = try? self?.makeTrackedUntitledDocument() else {
+            guard self != nil else {
                 return
             }
-            // 与 ⌘N 一致：新文档插入当前窗口标签组的最左端
-            NPTabWindowManager.shared.openNewDocument(document)
+            // 与 ⌘N / 标签栏"+"按钮一致：新文档插入当前窗口标签组的最左端
+            NPTabWindowManager.shared.createNewDocumentAsTabOrNewWindow()
         }
         // 初始化主题管理器：读取偏好并应用 NSApp 级外观（已开窗口即时跟随）
         _ = NPThemeManager.shared
@@ -237,17 +244,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 文件 → 新建标签页（⌘N）：创建无标题文档但不 showWindows，**插入当前窗口标签组的最左端**。
     /// - Parameter sender: 菜单项
-    /// - Note: 落点由 `NPTabWindowManager.openNewDocument(_:)` 固定为 `.leading`（即 `insertTab(0)`）；
-    ///   打开文件、会话恢复、拖拽重排仍按既有顺序追加，不受影响
+    /// - Note: 与标签栏右端"+"按钮共用 `NPTabWindowManager.createNewDocumentAsTabOrNewWindow()`；
+    ///   落点固定为 `.leading`（即 `insertTab(0)`），打开文件同样插最左，
+    ///   仅会话恢复/拖拽重排按既有顺序
     @objc func newTab(_ sender: Any?) {
-        do {
-            guard let document = try makeTrackedUntitledDocument() else {
-                return
-            }
-            NPTabWindowManager.shared.openNewDocument(document)
-        } catch {
-            // 创建失败：NSDocumentController 已记录错误，无进一步恢复路径
-        }
+        NPTabWindowManager.shared.createNewDocumentAsTabOrNewWindow()
     }
 
     /// 文件 → 打开…（⌘O）。

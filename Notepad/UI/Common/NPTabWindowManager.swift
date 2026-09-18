@@ -29,6 +29,11 @@ final class NPTabWindowManager {
     /// 路由决策：系统文档流（打开/新建）优先进入当前窗口作为标签
     var preferExistingWindow = true
 
+    /// 新建文档的创建器（由 App 层注入）：`AppDelegate` 负责"创建无标题文档并补登记
+    /// `NSDocumentController`"，此处只调用；未注入时"新建标签页"静默不做。
+    /// 以闭包注入而非直接引用 App 层类型，保持依赖方向不变。
+    var makeNewDocument: (() -> NPTextDocument?)?
+
     /// 已登记的标签组窗口控制器（只读暴露，退出流程遍历用）
     private(set) var windowControllers: [NPEditorWindowController] = []
 
@@ -66,6 +71,15 @@ final class NPTabWindowManager {
     /// - Parameter document: 文档
     func openNewDocument(_ document: NPTextDocument) {
         addDocumentAsTabOrNewWindow(document, position: .leading)
+    }
+
+    /// 新建标签页（菜单"文件 → 新建标签页 ⌘N"与标签栏右端"+"按钮共用）：
+    /// 经注入的 `makeNewDocument` 创建无标题文档，再插入当前窗口标签组最左端（无窗口则新建窗口）。
+    func createNewDocumentAsTabOrNewWindow() {
+        guard let document = makeNewDocument?() else {
+            return
+        }
+        openNewDocument(document)
     }
 
     /// 新建/重建文档入口：当前窗口加标签，无窗口则新窗口。

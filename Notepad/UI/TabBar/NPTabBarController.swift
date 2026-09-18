@@ -65,6 +65,8 @@ final class NPTabBarController: NPTabBarDelegate {
     var onAllTabsClosed: (() -> Void)?
     /// 拖出窗口回调（App 层建新窗口托管该文档）
     var onDragOut: ((TabEntry) -> Void)?
+    /// 右端"+"按钮回调（新建标签页；由窗口控制器拉起与 ⌘N 相同的流程）
+    var onNewTabRequested: (() -> Void)?
 
     /// 关闭确认完成回调（按文档键控，支持批量顺序关闭）
     private var closeCompletions: [ObjectIdentifier: (Bool) -> Void] = [:]
@@ -250,6 +252,12 @@ final class NPTabBarController: NPTabBarDelegate {
                                      action: #selector(revealInFinderAction(_:)), index: index)
         revealItem.isEnabled = entries.indices.contains(index) && entries[index].document.fileURL != nil
         return menu
+    }
+
+    /// 右端"+"按钮：转发为"新建标签页"请求（由窗口控制器拉起与 ⌘N 相同的流程）。
+    /// - Parameter tabBar: 标签栏视图
+    func tabBarDidRequestNewTab(_ tabBar: NPTabBarView) {
+        onNewTabRequested?()
     }
 
     // MARK: - 菜单动作

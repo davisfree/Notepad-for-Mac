@@ -186,6 +186,10 @@ final class NPEditorWindowController: NSWindowController {
         tabBarController.onDragOut = { entry in
             NPTabWindowManager.shared.openInNewWindow(entry.document)
         }
+        tabBarController.onNewTabRequested = {
+            // 与菜单"文件 → 新建标签页（⌘N）"完全同一条路径
+            NPTabWindowManager.shared.createNewDocumentAsTabOrNewWindow()
+        }
     }
 
     /// 切换展示的标签（换内容视图、document 指向、窗口标题）。

@@ -50,13 +50,13 @@ final class NPTabBarViewLayoutTests: XCTestCase {
 
         let bar = windowController.tabBarController.tabBar
         bar.layoutSubtreeIfNeeded()
-        let firstTabFrame = try XCTUnwrap(bar.subviews.first?.frame)
+        let firstTabFrame = try XCTUnwrap(cardViews(bar).first?.frame)
 
         let document = NPTextDocument()
         documents.append(document)
         windowController.addTab(for: document, position: .leading)
 
-        let frames = bar.subviews.map(\.frame)
+        let frames = cardViews(bar).map(\.frame)
         XCTAssertEqual(frames.count, 2, "标签栏子视图数应与标签数一致")
         XCTAssertEqual(frames[0].midX, firstTabFrame.midX, accuracy: 0.5,
                        "新标签必须占据第一张卡片的位置（最左端）")
@@ -79,7 +79,7 @@ final class NPTabBarViewLayoutTests: XCTestCase {
             windowController.addTab(for: document, position: .trailing)
         }
 
-        let frames = bar.subviews.map(\.frame)
+        let frames = cardViews(bar).map(\.frame)
         XCTAssertEqual(frames.count, 3)
         XCTAssertEqual(frames[0].minX, NPTabBarView.barLeadingInset, accuracy: 0.5,
                        "首个标签仍在左端内缩处（追加不改变既有顺序）")
@@ -100,11 +100,11 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let document = NPTextDocument()
         documents.append(document)
         windowController.addTab(for: document, position: .trailing)
-        let beforeFrames = bar.subviews.map(\.frame)
+        let beforeFrames = cardViews(bar).map(\.frame)
 
         bar.removeTab(at: 0)
 
-        let afterFrames = bar.subviews.map(\.frame)
+        let afterFrames = cardViews(bar).map(\.frame)
         XCTAssertEqual(afterFrames.count, 1, "关闭后应只剩一个标签")
         XCTAssertLessThan(afterFrames[0].minX, beforeFrames[1].minX,
                           "剩余标签应回到最左侧并变宽，而不是保留原位置")
@@ -131,10 +131,10 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         documents.append(contentsOf: entries.map(\.document))
 
         XCTAssertEqual(entries.count, 2, "菜单新建标签页应只增加一个标签")
-        XCTAssertEqual(bar.subviews.count, 2, "标签栏子视图数应与标签数一致")
-        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5,
+        XCTAssertEqual(cardViews(bar).count, 2, "标签栏子视图数应与标签数一致")
+        XCTAssertEqual(cardViews(bar)[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5,
                        "新建标签应位于最左端")
-        XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX,
+        XCTAssertGreaterThan(cardViews(bar)[1].frame.minX, cardViews(bar)[0].frame.minX,
                              "原标签应移到新建标签右侧")
         XCTAssertEqual(bar.selectedIndex, 0, "新建标签应被选中（最左端）")
         XCTAssertTrue(entries[1].document === existingDocument, "原标签应后移一位而不是被替换")
@@ -165,7 +165,7 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let entries = windowController.tabBarController.entries
         XCTAssertEqual(entries.count, 2, "只应增加一个标签")
         XCTAssertTrue(entries[0].document === document, "未命名新文档必须落在索引 0（最左端）")
-        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
+        XCTAssertEqual(cardViews(bar)[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
     }
 
     /// 工厂路径（打开文件经 AppKit `makeWindowControllers`）：**新增标签一律落在最左端**（`insertTab(0)`）。
@@ -188,12 +188,63 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let entries = windowController.tabBarController.entries
         XCTAssertEqual(entries.count, 2)
         XCTAssertTrue(entries.first?.document === document, "打开的文件也应落在最左端（insertTab(0)）")
-        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
-        XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX,
+        XCTAssertEqual(cardViews(bar)[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
+        XCTAssertGreaterThan(cardViews(bar)[1].frame.minX, cardViews(bar)[0].frame.minX,
                              "既有的标签应整体后移")
     }
 
+    /// 右端"+"按钮：存在、贴右端、且不计入标签。
+    func testNewTabButtonIsRightAlignedAndNotATab() throws {
+        _ = try makeWindowWithFirstTab()
+
+        let bar = windowController.tabBarController.tabBar
+        bar.layoutSubtreeIfNeeded()
+
+        let button = try XCTUnwrap(bar.subviews.compactMap { $0 as? NSButton }.first, "标签栏应有右端 + 按钮")
+        XCTAssertTrue(button.isEnabled, "按钮应可用")
+        XCTAssertEqual(bar.tabs.count, 1, "按钮不得计入标签数")
+
+        let cards = cardViews(bar)
+        XCTAssertEqual(cards.count, 1)
+        XCTAssertEqual(button.frame.maxX, bar.bounds.maxX - 4.0, accuracy: 0.5, "按钮应贴右端内缩 4pt")
+        XCTAssertGreaterThan(button.frame.minX, cards[0].frame.maxX, "按钮应在卡片区域右侧，不重叠")
+    }
+
+    /// 右端"+"按钮点击 = 新建标签页：新标签落在最左端并被选中，且不新开窗口。
+    func testNewTabButtonInsertsLeftmost() throws {
+        let window = try makeWindowWithFirstTab()
+        let bar = windowController.tabBarController.tabBar
+        let existingDocument = try XCTUnwrap(windowController.tabBarController.entries.first?.document)
+        let expectedWindowCount = NPTabWindowManager.shared.windowControllers.count
+        let existingIDs = windowController.tabBarController.entries.map { ObjectIdentifier($0.document) }
+
+        // 让路由把本窗口认作"最近活跃窗口"（测试宿主没有 key/main 窗口）
+        NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        let button = try XCTUnwrap(bar.subviews.compactMap { $0 as? NSButton }.first)
+        button.performClick(nil)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
+
+        let entries = windowController.tabBarController.entries
+        documents.append(contentsOf: entries.map(\.document))
+        let newDocuments = entries.map(\.document).filter { !existingIDs.contains(ObjectIdentifier($0)) }
+
+        XCTAssertEqual(entries.count, 2, "只应新增一个标签")
+        XCTAssertEqual(newDocuments.count, 1, "按钮应只新建一个文档标签，不得重复")
+        XCTAssertTrue(entries[0].document === newDocuments[0], "按钮新建的标签应落在最左端")
+        XCTAssertTrue(entries[1].document === existingDocument, "原标签应后移一位")
+        XCTAssertEqual(bar.selectedIndex, 0, "新标签应被选中（最左端）")
+        XCTAssertEqual(NPTabWindowManager.shared.windowControllers.count, expectedWindowCount,
+                       "应在当前窗口内加标签，不得新开窗口")
+    }
+
     // MARK: - 辅助
+
+    /// 标签卡片视图（按标签序；排除右端"+"按钮）
+    private func cardViews(_ bar: NPTabBarView) -> [NPTabItemView] {
+        bar.subviews.compactMap { $0 as? NPTabItemView }
+    }
 
     /// 经生产路径装配前台窗口（首标签为返回窗口内的唯一标签）。
     /// - Returns: 目标窗口

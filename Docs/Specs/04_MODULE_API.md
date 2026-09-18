@@ -512,6 +512,9 @@ public protocol NPTabBarDelegate: AnyObject {
     /// 右键菜单（关闭 / 关闭其他 / 关闭右侧 / 复制标签 / 在 Finder 中显示）。
     /// 返回 nil 使用默认菜单；菜单动作由委托方以 target/action 方式处理
     func tabBar(_ tabBar: NPTabBarView, didRequestContextMenuForTabAt index: Int) -> NSMenu?
+
+    /// 点击右端"+"按钮（新建标签页；语义同「文件 → 新建标签页 ⌘N」）
+    func tabBarDidRequestNewTab(_ tabBar: NPTabBarView)
 }
 ```
 
@@ -523,7 +526,10 @@ public protocol NPTabBarDelegate: AnyObject {
 > `NPTabWindowManager.addDocumentAsTabOrNewWindow(_:position:)` / `NPEditorWindowController.addTab(for:position:)`
 > 的 `position` **无默认值**，调用方必须显式声明；`NPTabBarView` 只提供 `insertTab(_:at:)`
 > （已删除追加语义的 `addTab(_:)`），使"隐式追加"在编译期不可能。
-> 新建文档的单一入口为 `NPTabWindowManager.openNewDocument(_:)`（固定 `.leading`）。
+> 新建文档的单一入口为 `NPTabWindowManager.createNewDocumentAsTabOrNewWindow()`
+> （经注入的 `makeNewDocument` 创建文档，再走 `openNewDocument(_:)`）——**菜单「文件 → 新建标签页（⌘N）」、
+> 快捷指令新建文档、标签栏右端"+"按钮三处共用**；右端按钮经
+> `NPTabBarDelegate.tabBarDidRequestNewTab(_:)` → `NPTabBarController.onNewTabRequested` 转发到该入口。
 > `NPTabGroupModel.insert(_:at:)` 与 `NPTabBarView.insertTab(_:at:)` 均对越界索引夹取到端点。
 > 前置插入会使既有标签的会话序号整体后移，因此 `addTab` 会按当前顺序重登记全部标签的
 > `windowGroupID` / `tabIndex`（否则重启恢复会丢序）。

@@ -5,6 +5,7 @@
 ## [1.0.4] - 2026-09-18
 
 ### Added
+- 标签栏右端新增"**+**"按钮（22×22pt，SF Symbol `plus`）：点击等价于「文件 → 新建标签页（`⌘N`）」，新标签同样落在最左端。`NPTabBarDelegate` 新增 `tabBarDidRequestNewTab(_:)`、`NPTabBarController` 新增 `onNewTabRequested` 回调、`NPTabWindowManager` 新增 `makeNewDocument` 注入点与 `createNewDocumentAsTabOrNewWindow()`（菜单项 / 快捷指令 / 按钮三处共用同一路径）；卡片可用宽度预留按钮占位（30pt），多标签溢出时不会压住按钮
 - 新增 `NPAppDelegateMenuValidationTests`：文件菜单"保存/另存为"可用性与"当前文档解析"回退链的回归测试（含"App 非激活、`keyWindow`/`mainWindow` 均为 `nil`"场景）
 - 新增 `NPTabBarViewLayoutTests`：标签卡片定位回归测试（新建即归位、多标签顺序、关闭后补位、菜单"新建标签页"路径）
 

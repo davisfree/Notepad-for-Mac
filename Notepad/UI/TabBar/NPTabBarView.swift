@@ -54,6 +54,11 @@ protocol NPTabBarDelegate: AnyObject {
     ///   - index: 标签索引
     /// - Returns: 上下文菜单
     func tabBar(_ tabBar: NPTabBarView, didRequestContextMenuForTabAt index: Int) -> NSMenu?
+
+    /// 点击右端"+"按钮（新建标签页）。
+    /// 语义与菜单"文件 → 新建标签页（⌘N）"一致：新标签插入当前窗口的最左端。
+    /// - Parameter tabBar: 标签栏视图
+    func tabBarDidRequestNewTab(_ tabBar: NPTabBarView)
 }
 
 /// 标签栏视图（高度固定 32pt；macOS 原生风格——标签为浮于栏背景上的圆角卡片，
@@ -72,6 +77,14 @@ final class NPTabBarView: NSView {
     static let height: CGFloat = 26.0
     /// 标签栏左端内缩（首张卡片起点，macOS 原生卡片布局）
     static let barLeadingInset: CGFloat = 4.0
+    /// 右端"新建标签页"按钮尺寸（02 §5.1 的 `[+]`）
+    static let newTabButtonSize: CGFloat = 22.0
+    /// 右端"新建标签页"按钮距右侧内缩
+    private static let newTabButtonTrailingInset: CGFloat = 4.0
+    /// 右端按钮占位宽度：计算卡片可用宽度时预留，避免多标签溢出时卡片压在按钮下
+    private static var newTabButtonAreaWidth: CGFloat {
+        newTabButtonSize + newTabButtonTrailingInset * 2.0
+    }
     /// 触发拖拽的最小位移
     private static let dragStartThreshold: CGFloat = 4.0
 
@@ -118,18 +131,49 @@ final class NPTabBarView: NSView {
     /// 当前拖拽状态
     private var dragState: DragState?
 
+    /// 右端"新建标签页"按钮
+    private let newTabButton = NSButton()
+
     // MARK: - 初始化
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         refreshBackground()
+        setupNewTabButton()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         wantsLayer = true
         refreshBackground()
+        setupNewTabButton()
+    }
+
+    /// 装配右端"新建标签页"按钮（无边框、悬停可点，不参与标签卡片布局）。
+    private func setupNewTabButton() {
+        let symbol = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12.0, weight: .medium))
+        if let symbol {
+            newTabButton.image = symbol
+        } else {
+            newTabButton.title = "+"
+        }
+        newTabButton.isBordered = false
+        newTabButton.bezelStyle = .regularSquare
+        newTabButton.contentTintColor = .secondaryLabelColor
+        let title = NSLocalizedString("Menu.File.NewTab", comment: "标签栏右端新建标签页按钮")
+        newTabButton.toolTip = title
+        newTabButton.setAccessibilityLabel(title)
+        newTabButton.target = self
+        newTabButton.action = #selector(handleNewTabButton(_:))
+        addSubview(newTabButton)
+    }
+
+    /// 右端"+"按钮动作：转发给委托（由控制器拉起"新建标签页"流程，与 ⌘N 同一路径）。
+    /// - Parameter sender: 按钮
+    @objc private func handleNewTabButton(_ sender: Any?) {
+        delegate?.tabBarDidRequestNewTab(self)
     }
 
     /// 刷新标签栏底色（动态色切换到当前有效外观下解析，避免主题切换瞬间解析成旧外观）。
@@ -161,21 +205,19 @@ final class NPTabBarView: NSView {
         needsLayout = true
     }
 
-    /// 保持子视图顺序与 `tabs` / `tabViews` 逻辑顺序一致。
+    /// 保持卡片子视图顺序与 `tabs` / `tabViews` 逻辑顺序一致，并让右端"+"按钮始终在最上层。
     ///
-    /// `addSubview` 只会把新视图追加到子视图列表末尾，因此前置插入（新建标签页落在最左端）
-    /// 会让 `subviews` 顺序与逻辑顺序不一致；卡片本身不重叠，但两者一致才能让绘制/命中测试
+    /// `addSubview` 只会把新视图追加到子视图列表末尾，因此前置插入（新增标签落在最左端）
+    /// 会让卡片顺序与逻辑顺序不一致；卡片本身不重叠，但两者一致才能让绘制/命中测试
     /// 与布局断言按同一种顺序解读。
     private func syncSubviewOrder() {
-        guard tabViews.count > 1 else {
-            return
-        }
-        for index in 1 ..< tabViews.count {
-            guard subviews.indices.contains(index), subviews[index] !== tabViews[index] else {
-                continue
+        if tabViews.count > 1 {
+            for index in 1 ..< tabViews.count {
+                addSubview(tabViews[index], positioned: .above, relativeTo: tabViews[index - 1])
             }
-            addSubview(tabViews[index], positioned: .above, relativeTo: tabViews[index - 1])
         }
+        // "+"按钮置顶：多标签溢出时卡片可能滑到按钮区域，按钮必须仍可点
+        addSubview(newTabButton, positioned: .above, relativeTo: nil)
     }
 
     /// 装配单个标签视图（选中/关闭/拖拽/右键回调均按 `tabViews` 中的当前位置解析索引）。
@@ -276,9 +318,12 @@ final class NPTabBarView: NSView {
     // MARK: - 布局
 
     /// 横向等宽布局标签卡片（宽度夹取 120–240pt；卡片垂直内缩 4pt、间距 2pt、左端内缩 4pt）。
+    /// 右端为"新建标签页"按钮预留占位，卡片可用宽度不含该区域。
     override func layout() {
         super.layout()
+        layoutNewTabButton()
         guard !tabViews.isEmpty else {
+            needsDisplay = true
             return
         }
         layoutCards()
@@ -288,12 +333,14 @@ final class NPTabBarView: NSView {
     /// 立即按当前标签数与 bounds 重排卡片（增删标签后同步调用）。
     ///
     /// 必须显式调用：`layout()` 由 AppKit 在下一个更新周期才执行，期间新卡片会保持
-    /// `frame == .zero`，即被画在标签栏最左端——用户看到的就是"新建标签落在最左边"。
+    /// `frame == .zero`，即被画在标签栏最左端。
     private func layoutCards() {
+        layoutNewTabButton()
         guard !tabViews.isEmpty else {
             return
         }
-        let width = min(max(bounds.width / CGFloat(tabViews.count), NPTabItemView.minimumWidth),
+        let availableWidth = bounds.width - Self.newTabButtonAreaWidth
+        let width = min(max(availableWidth / CGFloat(tabViews.count), NPTabItemView.minimumWidth),
                         NPTabItemView.maximumWidth)
         let cardHeight = bounds.height - NPTabItemView.cardVerticalInset * 2.0
         var xPosition: CGFloat = Self.barLeadingInset
@@ -302,6 +349,13 @@ final class NPTabBarView: NSView {
                                    width: width - NPTabItemView.cardSpacing, height: cardHeight)
             xPosition += width
         }
+    }
+
+    /// 右端"+"按钮位置（右对齐、垂直居中）。
+    private func layoutNewTabButton() {
+        newTabButton.frame = NSRect(x: bounds.maxX - Self.newTabButtonTrailingInset - Self.newTabButtonSize,
+                                    y: (bounds.height - Self.newTabButtonSize) / 2.0,
+                                    width: Self.newTabButtonSize, height: Self.newTabButtonSize)
     }
 
     // MARK: - 绘制
