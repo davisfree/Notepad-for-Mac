@@ -434,11 +434,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if menuItem.action == #selector(saveDocument(_:)) {
             // 保留可观测性：菜单变灰时能直接看到解析结果（release 不编译）
+            let window = NPTabWindowManager.shared.activeWindowController()
             let message = "save validate: documentNil=\(document == nil)"
                 + " edited=\(document?.isDocumentEdited ?? false)"
                 + " readOnly=\(document?.isReadOnly ?? false)"
                 + " keyWindow=\(NSApp.keyWindow?.className ?? "nil")"
                 + " mainWindow=\(NSApp.mainWindow?.className ?? "nil")"
+                + " resolvedWindow=\(window?.window?.title ?? "nil")"
+                + " tabs=\(window?.tabBarController.count ?? 0)"
             menuLog.debug("\(message, privacy: .public)")
         }
         #endif

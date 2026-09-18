@@ -156,6 +156,39 @@ final class NPAppDelegateMenuValidationTests: XCTestCase {
         XCTAssertFalse(document.isDocumentEdited)
     }
 
+    /// 菜单校验发生在菜单跟踪期间（`NSApp.keyWindow` / `mainWindow` 均为 nil）时，
+    /// 必须用"最近活跃窗口"解析当前文档，**不能**退化成"最近登记的窗口"。
+    ///
+    /// 退化会命中最后新建的窗口：于是"新建文档"保存可用，而其它已打开文件的窗口
+    /// 恒解析失败 → 保存项永远变灰（真实缺陷）。
+    func testActiveWindowPrefersMostRecentlyActiveOverRegistrationOrder() throws {
+        // 窗口 A：先登记的"已打开文件"窗口
+        try openFileAndShowWindow()
+        let windowA = try XCTUnwrap(windowController.window)
+
+        // 窗口 B：后登记的"最后新建"窗口（模拟 ⌘N 新建的窗口）
+        let secondURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("np-menu-2-\(UUID().uuidString).txt")
+        try "second".write(to: secondURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: secondURL) }
+        let secondDocument = try NPTextDocument(contentsOf: secondURL, ofType: "public.plain-text")
+        let secondWindowController = NPTabWindowManager.shared.openInNewWindow(secondDocument)
+        defer {
+            NPBackupService.shared.unregisterDocument(secondDocument)
+            secondWindowController.close()
+        }
+        XCTAssertFalse(secondWindowController.window === windowA)
+
+        // 用户实际在窗口 A 工作：投递 AppKit 的真实通知（等价于窗口 A 成为 key）
+        NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: windowA)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        XCTAssertTrue(
+            NPTabWindowManager.shared.activeWindowController()?.window === windowA,
+            "应优先最近活跃窗口，而不是最近登记的窗口（B）"
+        )
+    }
+
     // MARK: - 辅助
 
     /// 打开临时文件并装配前台标签组窗口。

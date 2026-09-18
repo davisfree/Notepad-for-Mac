@@ -13,6 +13,7 @@
 
 ### Fixed
 - 修复文件菜单"保存/另存为/打印"在 App 非激活、被面板抢占或菜单跟踪期间（`NSApp.mainWindow` 为 `nil`）集体变灰、且对应动作静默失效的问题（`currentDocument()` 曾单点依赖 `NSApp.mainWindow`）；DEBUG 构建新增 `menu` 分类诊断日志
+- 修复"当前文档"回退解析退化为"最近登记的窗口"（通常是最后新建的窗口）导致"新建文档可保存、其它已打开文件恒不可保存"的问题：`NPTabWindowManager` 现追踪每个登记窗口的 `didBecomeKey`，菜单跟踪期间以最近活跃窗口为准
 
 ## [1.0.3] - 2026-08-31
 

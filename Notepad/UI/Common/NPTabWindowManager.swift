@@ -29,8 +29,12 @@ final class NPTabWindowManager {
     /// 已登记的标签组窗口控制器（只读暴露，退出流程遍历用）
     private(set) var windowControllers: [NPEditorWindowController] = []
 
-    /// 最近一次以 key/main 身份解析胜出的窗口（App 非激活时的回退依据，弱引用避免滞留已关窗口）
+    /// 最近一次成为 key 的标签组窗口（菜单跟踪期间 `NSApp.keyWindow`/`mainWindow` 均为 nil，
+    /// 这份记忆是解析"当前文档"的依据；弱引用避免滞留已关窗口）
     private weak var lastActiveWindowController: NPEditorWindowController?
+
+    /// 各登记窗口的 `didBecomeKey` 观察者（按窗口控制器标识键控，注销时移除）
+    private var keyObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
 
     // MARK: - 初始化
 
@@ -84,14 +88,52 @@ final class NPTabWindowManager {
             return
         }
         windowControllers.append(windowController)
+        observeKeyWindow(windowController)
     }
 
     /// 注销窗口控制器（窗口关闭时调用）。
     /// - Parameter windowController: 标签组窗口控制器
     func unregister(_ windowController: NPEditorWindowController) {
+        if let observer = keyObservers.removeValue(forKey: ObjectIdentifier(windowController)) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if lastActiveWindowController === windowController {
+            lastActiveWindowController = nil
+        }
         windowControllers.removeAll { controller in
             controller === windowController
         }
+    }
+
+    /// 记录最近成为 key 的标签组窗口。
+    ///
+    /// 菜单校验发生在菜单跟踪期间，此时 `NSApp.keyWindow` 与 `NSApp.mainWindow` 均为 `nil`，
+    /// 必须靠这份记忆解析当前文档；否则会退化成"最近登记的窗口"（通常是最后新建的窗口），
+    /// 导致其它窗口的保存/另存为/打印恒变灰。
+    /// - Parameter windowController: 目标窗口控制器
+    func noteActive(_ windowController: NPEditorWindowController) {
+        lastActiveWindowController = windowController
+    }
+
+    // MARK: - 私有
+
+    /// 观察窗口成为 key 的时机，用于维护"最近活跃窗口"记忆。
+    /// - Parameter windowController: 标签组窗口控制器
+    private func observeKeyWindow(_ windowController: NPEditorWindowController) {
+        guard let window = windowController.window else {
+            return
+        }
+        let observer = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: window,
+            queue: .main
+        ) { [weak self, weak windowController] _ in
+            guard let windowController else {
+                return
+            }
+            self?.noteActive(windowController)
+        }
+        keyObservers[ObjectIdentifier(windowController)] = observer
     }
 
     // MARK: - 活跃窗口解析
