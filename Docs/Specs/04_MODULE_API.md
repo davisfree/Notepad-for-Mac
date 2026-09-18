@@ -514,6 +514,12 @@ public protocol NPTabBarDelegate: AnyObject {
 }
 ```
 
+> **布局契约（v1.0.4）**：`addTab` / `removeTab` / `reloadTabs` 必须在返回前完成卡片重排——
+> 卡片位置由 `NPTabBarView.layout()` 计算，而 AppKit 要到下一个更新周期才调用它；若不在增删时
+> 同步重排，新卡片会保持 `frame == .zero`，即被画在标签栏**最左端**（后加入者还在最上层），
+> 表现为"点击新建标签页后新标签出现在最左边而不是最右边"。故 `layoutCards()` 由增删路径直接调用，
+> `layout()` 仅作为窗口尺寸变化时的复算入口。
+
 ### 3.3 NPFindBarView
 
 ```swift

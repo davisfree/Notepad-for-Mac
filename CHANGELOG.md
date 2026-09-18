@@ -6,12 +6,15 @@
 
 ### Added
 - 新增 `NPAppDelegateMenuValidationTests`：文件菜单"保存/另存为"可用性与"当前文档解析"回退链的回归测试（含"App 非激活、`keyWindow`/`mainWindow` 均为 `nil`"场景）
+- 新增 `NPTabBarViewLayoutTests`：标签卡片定位回归测试（新建即归位、多标签顺序、关闭后补位、菜单"新建标签页"路径）
 
 ### Changed
 - "保存/另存为"改为存在可编辑（非只读）文档即恒可用，对齐 Windows 11 记事本；未修改时 `⌘S` 交由 `NSDocument.save(_:)` 处理（未命名文档弹保存面板）；只读大文件（>10MB）两项一并禁用
 - "当前活跃标签组窗口"解析收敛为单一事实来源 `NPTabWindowManager.activeWindowController()`（key → main → 最近活跃 → 最近登记的可见窗口），`AppDelegate` 的保存/另存为/打印/页面设置/始终在最前统一复用之
 
 ### Fixed
+- 修复"点击新建标签页后新标签显示在标签栏最左边而不是最右边"：卡片位置只在 `NPTabBarView.layout()` 中计算，而 AppKit 要到下一个更新周期才调用它，期间新卡片保持 `frame == .zero`（即标签栏原点、最左端，且因后加入而位于最上层）。现抽出 `layoutCards()` 并在 `addTab` / `removeTab` / `reloadTabs` 中同步调用，增删标签后立即归位；同时补齐"关闭左侧标签后剩余卡片立即前移补位"
+- 加固会话恢复测试的隔离性：`NPSessionRestoreTests` 按完整路径匹配恢复出的文档（测试宿主会恢复用户真实会话，仅比 `lastPathComponent` 会误取同名文件）
 - 修复文件菜单"保存/另存为/打印"在 App 非激活、被面板抢占或菜单跟踪期间（`NSApp.mainWindow` 为 `nil`）集体变灰、且对应动作静默失效的问题（`currentDocument()` 曾单点依赖 `NSApp.mainWindow`）；DEBUG 构建新增 `menu` 分类诊断日志
 - 修复"当前文档"回退解析退化为"最近登记的窗口"（通常是最后新建的窗口）导致"新建文档可保存、其它已打开文件恒不可保存"的问题：`NPTabWindowManager` 现追踪每个登记窗口的 `didBecomeKey`，菜单跟踪期间以最近活跃窗口为准
 - 修复会话恢复丢失文件关联：打开已有文件 → 退出 → 重启后内容正确但标题变成"未命名"。沙盒的"用户选择文件"权限只对当前进程有效，仅记录路径时重启后打不开原文件，恢复逻辑落到"原文件已丢失"兜底分支；现改为在备份元数据（schema v3）记录 security-scoped bookmark，恢复时据此重新取得读写权限

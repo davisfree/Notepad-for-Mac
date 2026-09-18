@@ -183,6 +183,7 @@ final class NPTabBarView: NSView {
         tabViews.append(tabView)
         addSubview(tabView)
         updateSelectionStyles()
+        layoutCards()
         needsLayout = true
     }
 
@@ -196,6 +197,7 @@ final class NPTabBarView: NSView {
         let removed = tabViews.remove(at: index)
         removed.removeFromSuperview()
         updateSelectionStyles()
+        layoutCards()
         needsLayout = true
     }
 
@@ -235,6 +237,7 @@ final class NPTabBarView: NSView {
         for tab in newTabs {
             addTab(tab)
         }
+        layoutCards()
         needsLayout = true
     }
 
@@ -243,6 +246,18 @@ final class NPTabBarView: NSView {
     /// 横向等宽布局标签卡片（宽度夹取 120–240pt；卡片垂直内缩 4pt、间距 2pt、左端内缩 4pt）。
     override func layout() {
         super.layout()
+        guard !tabViews.isEmpty else {
+            return
+        }
+        layoutCards()
+        needsDisplay = true
+    }
+
+    /// 立即按当前标签数与 bounds 重排卡片（增删标签后同步调用）。
+    ///
+    /// 必须显式调用：`layout()` 由 AppKit 在下一个更新周期才执行，期间新卡片会保持
+    /// `frame == .zero`，即被画在标签栏最左端——用户看到的就是"新建标签落在最左边"。
+    private func layoutCards() {
         guard !tabViews.isEmpty else {
             return
         }
@@ -255,7 +270,6 @@ final class NPTabBarView: NSView {
                                    width: width - NPTabItemView.cardSpacing, height: cardHeight)
             xPosition += width
         }
-        needsDisplay = true
     }
 
     // MARK: - 绘制

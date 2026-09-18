@@ -77,10 +77,12 @@ final class NPSessionRestoreTests: XCTestCase {
         let appDelegate = try XCTUnwrap(NSApp.delegate as? AppDelegate)
         appDelegate.restoreSession(from: [record])
 
+        // 按**完整路径**匹配：测试宿主会恢复用户真实会话，可能已存在同名文件（如
+        // ~/Documents/运动分类.txt），只比 lastPathComponent 会误取那一个
         let document = try XCTUnwrap(
             NSDocumentController.shared.documents
                 .compactMap { $0 as? NPTextDocument }
-                .first { $0.fileURL?.lastPathComponent == "运动分类.txt" },
+                .first { $0.fileURL?.path == originalURL.path },
             "应恢复为文件型文档（标题即原文件名），而不是未命名文档"
         )
         restoredDocument = document
