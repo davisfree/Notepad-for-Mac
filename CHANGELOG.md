@@ -2,7 +2,7 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.0.4] - 2026-09-18
 
 ### Added
 - 新增 `NPAppDelegateMenuValidationTests`：文件菜单"保存/另存为"可用性与"当前文档解析"回退链的回归测试（含"App 非激活、`keyWindow`/`mainWindow` 均为 `nil`"场景）
