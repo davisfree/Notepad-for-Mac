@@ -594,6 +594,24 @@ public final class NPThemeManager {
 }
 ```
 
+### 3.5 菜单可用性契约（AppDelegate / NPTabWindowManager）
+
+> 对应 `07_PROJECT_STRUCTURE.md` 2.1（`App/AppDelegate.swift`）与 2.4（`UI/Common/NPTabWindowManager.swift`）。
+> 两者均为内部类型（非契约类型），本节固化的是**菜单项可用性规则与"当前文档"解析顺序**。
+
+```swift
+/// 当前活跃标签组窗口（窗口路由与菜单校验的唯一事实来源）
+@MainActor func activeWindowController() -> NPEditorWindowController?
+
+/// 保存 / 另存为可用性规则（纯函数）
+static func isSaveEnabled(for document: NPTextDocument?) -> Bool
+```
+
+- **当前文档解析顺序**：`NSApp.keyWindow` → `NSApp.mainWindow` → 最近活跃过的可见标签组窗口 → 最近登记的可见标签组窗口 → `NSDocumentController.currentDocument` 兜底。
+  业务代码**不得直接读 `NSApp.mainWindow`**：该值在 App 非激活、被面板抢占、菜单跟踪期间均为 `nil`，一旦解析失败，保存 / 另存为 / 打印 / 页面设置会集体变灰，且对应动作静默失效（`AppDelegate.currentDocument()`）。
+- **可用性规则**：存在可编辑（`isReadOnly == false`）文档即"保存"与"另存为"可用，不随"是否有未保存更改"变化（对齐 Win11 记事本）；未修改时 `⌘S` 交由 `NSDocument.save(_:)` 处理（未命名文档弹保存面板）；只读大文件（`NPConstants.largeFileThreshold`）两项一并禁用。
+- **诊断**：`DEBUG` 构建下 `validateMenuItem` 保存分支输出 `menu` 分类日志（`log stream --level debug --predicate 'category == "menu"'`）。
+
 ---
 
 ## 4. Preferences 模块

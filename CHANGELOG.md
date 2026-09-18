@@ -2,6 +2,18 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+- 新增 `NPAppDelegateMenuValidationTests`：文件菜单"保存/另存为"可用性与"当前文档解析"回退链的回归测试（含"App 非激活、`keyWindow`/`mainWindow` 均为 `nil`"场景）
+
+### Changed
+- "保存/另存为"改为存在可编辑（非只读）文档即恒可用，对齐 Windows 11 记事本；未修改时 `⌘S` 交由 `NSDocument.save(_:)` 处理（未命名文档弹保存面板）；只读大文件（>10MB）两项一并禁用
+- "当前活跃标签组窗口"解析收敛为单一事实来源 `NPTabWindowManager.activeWindowController()`（key → main → 最近活跃 → 最近登记的可见窗口），`AppDelegate` 的保存/另存为/打印/页面设置/始终在最前统一复用之
+
+### Fixed
+- 修复文件菜单"保存/另存为/打印"在 App 非激活、被面板抢占或菜单跟踪期间（`NSApp.mainWindow` 为 `nil`）集体变灰、且对应动作静默失效的问题（`currentDocument()` 曾单点依赖 `NSApp.mainWindow`）；DEBUG 构建新增 `menu` 分类诊断日志
+
 ## [1.0.3] - 2026-08-31
 
 ### Fixed

@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import os
 
 /// 应用生命周期委托。
 ///
@@ -376,7 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let document = currentDocument() else {
             return
         }
-        NPPrintService.shared.showPageSetup(for: document, in: NSApp.mainWindow) { _ in }
+        NPPrintService.shared.showPageSetup(for: document, in: activeWindow()) { _ in }
     }
 
     /// 文件 → 打印…（⌘P，路由到打印服务，作用于当前活动文档）。
@@ -385,14 +386,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let document = currentDocument() else {
             return
         }
-        NPPrintService.shared.printDocument(document, in: NSApp.mainWindow) { _ in }
+        NPPrintService.shared.printDocument(document, in: activeWindow()) { _ in }
     }
 
-    /// 当前活动文档（标签组架构下取当前窗口选中标签的文档）。
+    /// 当前活动文档（标签组架构下取活跃窗口选中标签的文档）。
+    ///
+    /// 解析入口是 `NPTabWindowManager.activeWindowController()`（key → main → 最近登记的可见窗口），
+    /// 再以 `NSDocumentController.currentDocument` 兜底。**不得直接读 `NSApp.mainWindow`**：
+    /// 该值在 App 非激活 / 被面板抢占 / 菜单跟踪期间为 `nil`，会导致保存、另存为、打印
+    /// 集体变灰且动作静默失效。
     /// - Returns: 文档（无窗口时为 nil）
     private func currentDocument() -> NPTextDocument? {
-        let windowController = NSApp.mainWindow?.windowController as? NPEditorWindowController
-        return windowController?.tabBarController.selectedEntry?.document
+        if let document = NPTabWindowManager.shared.activeWindowController()?
+            .tabBarController.selectedEntry?.document {
+            return document
+        }
+        return NSDocumentController.shared.currentDocument as? NPTextDocument
+    }
+
+    /// 当前活跃的标签组窗口（窗口级校验与开关使用）。
+    /// - Returns: 窗口（无标签组窗口时为 nil）
+    private func activeWindow() -> NSWindow? {
+        NPTabWindowManager.shared.activeWindowController()?.window ?? NSApp.mainWindow
     }
 
     // MARK: - 应用菜单动作
@@ -495,7 +510,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 视图 → 始终在最前（切换当前窗口浮动层级）。
     /// - Parameter sender: 菜单项
     @objc func toggleAlwaysOnTop(_ sender: NSMenuItem) {
-        guard let window = NSApp.mainWindow else {
+        guard let window = activeWindow() else {
             return
         }
         window.level = window.level == .floating ? .normal : .floating
@@ -503,19 +518,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 菜单状态验证
 
-    /// 菜单项状态验证：状态栏/主题勾选读偏好，始终在最前读当前窗口层级，打印项随活动文档启停。
+    /// 菜单项状态验证：状态栏/主题勾选读偏好，始终在最前读当前窗口层级，保存/打印随活动文档启停。
     /// - Parameter menuItem: 待验证菜单项
     /// - Returns: 是否可用
     @objc func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        let document = currentDocument()
+        #if DEBUG
         if menuItem.action == #selector(saveDocument(_:)) {
-            return currentDocument()?.isDocumentEdited == true
+            // 保留可观测性：菜单变灰时能直接看到解析结果（release 不编译）
+            let message = "save validate: documentNil=\(document == nil)"
+                + " edited=\(document?.isDocumentEdited ?? false)"
+                + " readOnly=\(document?.isReadOnly ?? false)"
+                + " keyWindow=\(NSApp.keyWindow?.className ?? "nil")"
+                + " mainWindow=\(NSApp.mainWindow?.className ?? "nil")"
+            menuLog.debug("\(message, privacy: .public)")
         }
-        if menuItem.action == #selector(saveDocumentAs(_:)) {
-            return currentDocument() != nil
+        #endif
+        if menuItem.action == #selector(saveDocument(_:))
+            || menuItem.action == #selector(saveDocumentAs(_:)) {
+            return Self.isSaveEnabled(for: document)
         }
         if menuItem.action == #selector(showPageSetupAction(_:))
             || menuItem.action == #selector(printDocumentAction(_:)) {
-            return currentDocument() != nil
+            return document != nil
         }
         switch menuItem.tag {
         case NPConstants.MenuTag.statusBar:
@@ -527,11 +552,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case NPConstants.MenuTag.themeSystem:
             menuItem.state = NPPreferences.shared.theme == .system ? .on : .off
         case NPConstants.MenuTag.alwaysOnTop:
-            menuItem.state = NSApp.mainWindow?.level == .floating ? .on : .off
+            menuItem.state = activeWindow()?.level == .floating ? .on : .off
         default:
             break
         }
         return true
+    }
+
+    /// 保存 / 另存为可用性规则：存在可编辑（非只读）文档即可用。
+    ///
+    /// 对齐 Win11 记事本语义——保存项恒可用，不随"是否存在未保存更改"变化
+    /// （未修改时走 `NSDocument.save(_:)`，未命名文档会弹出保存面板）。
+    /// 只读文档（>10MB，`NPConstants.largeFileThreshold`）既不可编辑也不可写盘，
+    /// 保存与另存为一并禁用，避免必然失败的写盘尝试。
+    /// - Parameter document: 当前文档
+    /// - Returns: 是否可用
+    static func isSaveEnabled(for document: NPTextDocument?) -> Bool {
+        guard let document else {
+            return false
+        }
+        return !document.isReadOnly
     }
 }
 
@@ -594,3 +634,10 @@ extension AppDelegate: NSServicesMenuRequestor {
         }
     }
 }
+
+/// 菜单校验诊断日志（仅 DEBUG 编译）。
+/// 回收方式：`log stream --level debug --predicate 'category == "menu"'`。
+private let menuLog = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.notepad.app",
+    category: "menu"
+)
