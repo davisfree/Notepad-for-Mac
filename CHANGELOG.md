@@ -9,6 +9,7 @@
 - 新增 `NPTabBarViewLayoutTests`：标签卡片定位回归测试（新建即归位、多标签顺序、关闭后补位、菜单"新建标签页"路径）
 
 ### Changed
+- **打开文件也插入到最左端**（承接上一条用户偏好）：AppKit 工厂路径 `NPTabWindowManager.acquireWindowController(for:)` 改为无条件 `.leading`，打开文件（`⌘O`、打开最近使用、拖文件到 Dock 图标）与新建标签页行为一致；仅会话恢复、Dock 重开重建、复制标签、拖拽重排保持原有顺序
 - 文件 → 新建标签页（`⌘N`）的插入位置改为**最左端**（用户偏好）：新标签插入索引 0 并立即选中，既有标签整体后移；打开文件、会话恢复、拖拽重排、复制标签仍为追加到最右端。新增 `NPTabBarController.InsertionPosition`（`.leading` / `.trailing`）、`NPTabBarView.insertTab(_:at:)`、`NPTabGroupModel.insert(_:at:)`；前置插入后按当前顺序重登记全部标签的会话序号
 - 标签插入路径加固（消除"新建文档被追加到最右端"的残余入口）：`NPTabWindowManager.acquireWindowController(for:)`（AppKit `makeWindowControllers` 工厂路径）改为按文档性质路由——未命名新文档 `.leading`、已存盘文件 `.trailing`；新增单一入口 `NPTabWindowManager.openNewDocument(_:)`（固定 `.leading`，⌘N 与快捷指令调用）；删除 `NPTabBarView.addTab(_:)`，`addTab(for:position:)` / `addDocumentAsTabOrNewWindow(_:position:)` / `NPEditorWindowController.addTab(for:position:)` 的 `position` 不再有默认值，调用方必须显式声明；`addTab` 新增 `#if DEBUG` 的 `tabs` 分类路径日志，一次点击即可确认走的是哪条路径
 - 构建产物目录调整为**直接落在仓库 `build/` 根下**：新增 `CONFIGURATION_BUILD_DIR: $(SRCROOT)/build`，App 位于 `build/Notepad.app`（本机绝对路径 `/Users/davisx/kimi/notepad/Notepad/build/Notepad.app`），与 `Scripts/dev-build.sh` 的既有约定统一；`SYMROOT` 仍为 `$(SRCROOT)/build`（中间产物）。Debug/Release 共用该目录（后构建者覆盖），发布仍由 `Scripts/release.sh` 走 archive + 导出 `build/Release/`

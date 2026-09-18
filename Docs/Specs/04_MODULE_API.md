@@ -516,9 +516,10 @@ public protocol NPTabBarDelegate: AnyObject {
 ```
 
 > **插入位置契约（v1.0.4 起）**：`NPTabBarController.InsertionPosition` 决定新标签落点——
-> `.leading`（新建文档：⌘N 新建标签页、快捷指令新建文档、**以及未命名文档经 AppKit 工厂路径
-> `acquireWindowController` 进入时**）插入索引 0 并选中，`.trailing`（打开文件、会话恢复、复制标签、
-> 拖拽重排、Dock 重开）追加到最右端。`addTab(for:position:)` 与
+> `.leading`（**新增标签的统一落点**：⌘N 新建标签页、快捷指令新建文档、**打开文件**
+> （AppKit 工厂路径 `acquireWindowController`）、拖文件到 Dock 图标）插入索引 0 并选中；
+> `.trailing`（会话恢复、Dock 重开重建、复制标签、拖拽重排）追加到最右端以保持原有顺序。
+> `addTab(for:position:)` 与
 > `NPTabWindowManager.addDocumentAsTabOrNewWindow(_:position:)` / `NPEditorWindowController.addTab(for:position:)`
 > 的 `position` **无默认值**，调用方必须显式声明；`NPTabBarView` 只提供 `insertTab(_:at:)`
 > （已删除追加语义的 `addTab(_:)`），使"隐式追加"在编译期不可能。

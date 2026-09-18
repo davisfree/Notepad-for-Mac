@@ -170,7 +170,7 @@
 | UT-TABBAR-004 | 菜单路径       | 调用 `AppDelegate.newTab(_:)`（文件 → 新建标签页）            | 新标签位于最左端并被选中，原标签后移一位；**只新增 1 个文档标签且不新开窗口** | P0     |
 | UT-TABBAR-005 | 模型插入位置   | `NPTabGroupModel.insert(_:at:)`，含越界索引                   | 新标签在索引 0 且被选中；越界夹取到 `0...count`         | P1     |
 | UT-TABBAR-006 | 工厂路径（未命名） | `acquireWindowController(for: 无标题文档)`                 | 返回 nil（作标签入现有窗口）且新标签落在索引 0（最左端） | P0     |
-| UT-TABBAR-007 | 工厂路径（已存盘） | `acquireWindowController(for: 已打开文件文档)`             | 追加到最右端（打开文件语义不变）                       | P0     |
+| UT-TABBAR-007 | 工厂路径（已存盘） | `acquireWindowController(for: 已打开文件文档)`             | 同样落在索引 0（最左端），既有标签整体后移             | P0     |
 
 > UT-TABBAR-001/004 是"增删标签后卡片未同步归位"缺陷的回归锚点：卡片位置只在 `layout()` 中计算，
 > AppKit 要到下一个更新周期才调用它，期间新卡片 `frame == .zero`（标签栏原点）。

@@ -12,7 +12,9 @@ import AppKit
 ///
 /// 决定文档进入现有窗口（作为新标签）还是新建窗口（对齐 Win11 行为）：
 /// - 打开文件/新建标签：当前有窗口则插入为标签，无窗口则新窗口；
-///   其中**新建标签页（⌘N）插到最左端**（用户偏好），打开文件与会话恢复保持追加到最右端；
+///   **新增标签一律落在最左端**（用户偏好，内部走 `insertTab(0)`）——包括 ⌘N 新建标签页、
+///   快捷指令新建文档、打开文件（AppKit 工厂路径 `acquireWindowController`）；
+///   仅会话恢复与 Dock 重开重建走 `.trailing` 以保持原有标签序；
 /// - 新建窗口（⌘N）：`preferExistingWindow` 临时置 `false` 强制新窗口；
 /// - 拖出标签：摘除后由 `openInNewWindow` 托管为新窗口。
 @MainActor
@@ -45,13 +47,13 @@ final class NPTabWindowManager {
 
     /// 窗口工厂入口（`NPTextDocument.windowControllerFactory` 注入目标）。
     ///
-    /// AppKit 展示文档时经此进入（`NSDocument.makeWindowControllers`）：**未命名新文档按"新建标签页"
-    /// 语义落在最左端**（`insertTab(0)`），已存盘文件追加到最右端。
+    /// AppKit 展示文档时经此进入（`NSDocument.makeWindowControllers`：打开文件、打开最近使用、
+    /// 拖文件到 Dock 图标等）：**新增标签一律落在最左端**（`insertTab(0)`），与 ⌘N 新建标签页一致。
     /// - Parameter document: 文档
     /// - Returns: 新窗口控制器；若文档已作为标签加入现有窗口则返回 `nil`
     func acquireWindowController(for document: NPTextDocument) -> NSWindowController? {
         if preferExistingWindow, let current = activeWindowController() {
-            current.addTab(for: document, position: document.fileURL == nil ? .leading : .trailing)
+            current.addTab(for: document, position: .leading)
             current.window?.makeKeyAndOrderFront(nil)
             return nil
         }

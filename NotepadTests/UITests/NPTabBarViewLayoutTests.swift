@@ -168,8 +168,8 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
     }
 
-    /// 工厂路径：**已存盘文件仍追加到最右端**（打开文件语义不变）。
-    func testFactoryPathAppendsOpenedFileRightmost() throws {
+    /// 工厂路径（打开文件经 AppKit `makeWindowControllers`）：**新增标签一律落在最左端**（`insertTab(0)`）。
+    func testFactoryPathPutsOpenedFileLeftmost() throws {
         let window = try makeWindowWithFirstTab()
         let bar = windowController.tabBarController.tabBar
 
@@ -187,8 +187,10 @@ final class NPTabBarViewLayoutTests: XCTestCase {
 
         let entries = windowController.tabBarController.entries
         XCTAssertEqual(entries.count, 2)
-        XCTAssertTrue(entries.last?.document === document, "已存盘文件应追加到最右端")
-        XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX)
+        XCTAssertTrue(entries.first?.document === document, "打开的文件也应落在最左端（insertTab(0)）")
+        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
+        XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX,
+                             "既有的标签应整体后移")
     }
 
     // MARK: - 辅助
