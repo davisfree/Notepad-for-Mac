@@ -45,6 +45,8 @@ final class NPMenuBuilderTests: XCTestCase {
         XCTAssertEqual(spec("newTab:")?.keyModifiers, [.command])
         XCTAssertEqual(spec("newWindow:")?.keyEquivalent, "n")
         XCTAssertEqual(spec("newWindow:")?.keyModifiers, [.shift, .command])
+        XCTAssertEqual(spec("saveDocument:")?.target, .appDelegate)
+        XCTAssertEqual(spec("saveDocumentAs:")?.target, .appDelegate)
         XCTAssertEqual(spec("saveDocumentAs:")?.keyModifiers, [.shift, .command])
         XCTAssertEqual(spec("showReplaceBarAction:")?.keyModifiers, [.option, .command])
         XCTAssertEqual(spec("goToLineAction:")?.keyModifiers, [.control])

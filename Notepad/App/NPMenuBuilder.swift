@@ -181,9 +181,10 @@ enum NPMenuBuilder {
             NPMenuItemSpec(titleKey: "Menu.File.ClearRecent", actionName: "clearRecentDocuments:", target: .appDelegate)
         ]),
         .separator,
-        NPMenuItemSpec(titleKey: "Menu.File.Save", keyEquivalent: "s", actionName: "saveDocument:"),
+        NPMenuItemSpec(titleKey: "Menu.File.Save", keyEquivalent: "s", actionName: "saveDocument:",
+                   target: .appDelegate),
         NPMenuItemSpec(titleKey: "Menu.File.SaveAs", keyEquivalent: "s", keyModifiers: [.shift, .command],
-                       actionName: "saveDocumentAs:"),
+                   actionName: "saveDocumentAs:", target: .appDelegate),
         .separator,
         NPMenuItemSpec(titleKey: "Menu.File.PageSetup", keyModifiers: [], actionName: "showPageSetupAction:",
                        target: .appDelegate),

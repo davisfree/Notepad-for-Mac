@@ -138,12 +138,6 @@ final class NPEditorWindowController: NSWindowController {
     /// 同步窗口标题为 `当前文档 displayName - Notepad`。
     override func synchronizeWindowTitleWithDocumentName() {
         super.synchronizeWindowTitleWithDocumentName()
-        if NPPreferences.shared.isAutoSaveEnabled {
-            // 自动保存 ON：脏状态由会话备份承载（01 §3.5），窗口不呈现"已编辑"标记，
-            // 避免系统依据 window.isDocumentEdited 在关窗时弹出保存确认
-            // （未保存状态已由标签页圆点表达，PRD FR-002）
-            window?.isDocumentEdited = false
-        }
         guard let document else {
             return
         }
