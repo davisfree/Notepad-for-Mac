@@ -48,7 +48,8 @@ struct NPBackupMetadata: Codable {
 }
 
 /// 会话生命周期标记。`cleanShutdown == false` 表示上次进程未完成正常退出流程。
-private struct NPBackupSessionState: Codable {
+/// - Note: `internal` 而非 `private`：会话状态落盘在 `NPBackupService+Storage.swift`。
+struct NPBackupSessionState: Codable {
     var schemaVersion: Int
     var cleanShutdown: Bool
     var timestamp: TimeInterval
@@ -124,24 +125,24 @@ final class NPBackupService {
     /// 备份保留天数
     static let retentionDays = 7
     /// 备份内容文件扩展名
-    private nonisolated static let contentFileExtension = "txt"
+    nonisolated static let contentFileExtension = "txt"
     /// 备份元数据文件扩展名
-    private nonisolated static let metadataFileExtension = "json"
+    nonisolated static let metadataFileExtension = "json"
     /// 会话生命周期文件名
-    private nonisolated static let sessionStateFileName = "session-state.json"
+    nonisolated static let sessionStateFileName = "session-state.json"
     /// 单文档快照最大 UTF-8 字节数（10 MiB）
     static let maxSnapshotBytes = 10 * 1024 * 1024
     /// 会话缓存目录最大占用（100 MiB）
-    private static let maxBackupDirectoryBytes = 100 * 1024 * 1024
+    static let maxBackupDirectoryBytes = 100 * 1024 * 1024
 
     // MARK: - 属性
 
     /// 备份目录
-    private let backupDirectory: URL
+    let backupDirectory: URL
     /// 文件管理器
-    private let fileManager = FileManager.default
+    let fileManager = FileManager.default
     /// 串行化快照提交，避免旧写入晚完成而覆盖新内容
-    private let writeQueue = DispatchQueue(label: "com.notepad.backup.write", qos: .utility)
+    let writeQueue = DispatchQueue(label: "com.notepad.backup.write", qos: .utility)
 
     /// 文档注册信息。
     private struct Registration {
@@ -345,50 +346,6 @@ final class NPBackupService {
 
     // MARK: - 恢复
 
-    /// 恢复崩溃前的会话。
-    /// 必须包含从未保存的"无标题"文档及其光标位置（PRD FR-003）。
-    /// - Returns: 可恢复的备份项列表
-    func recoverableItems() -> [NPBackupItem] {
-        recoverableRecords().map { record in record.item }
-    }
-
-    /// 读取全部有效备份记录（含会话归属，供启动恢复分组）。
-    /// "有效"= 文件对完整、元数据可解码且未超保留期（7 天）。
-    /// - Returns: 备份记录列表（按窗口组、标签序、时间戳排序）
-    func recoverableRecords() -> [NPBackupRecord] {
-        guard let files = try? fileManager.contentsOfDirectory(atPath: backupDirectory.path) else {
-            return []
-        }
-        let cutoff = Date().timeIntervalSince1970 - TimeInterval(Self.retentionDays * 24 * 60 * 60)
-        var records: [NPBackupRecord] = []
-        for file in files where file.hasSuffix(".\(Self.metadataFileExtension)") {
-            guard let record = loadRecord(metadataFileName: file),
-                  record.timestamp >= cutoff else {
-                continue
-            }
-            records.append(record)
-        }
-
-        var latestBySlot: [String: NPBackupRecord] = [:]
-        for record in records {
-            let key = "\(record.windowGroupID.uuidString)|\(record.tabIndex)"
-            if let existing = latestBySlot[key], existing.timestamp >= record.timestamp {
-                continue
-            }
-            latestBySlot[key] = record
-        }
-
-        return latestBySlot.values.sorted { lhs, rhs in
-            if lhs.windowGroupID.uuidString != rhs.windowGroupID.uuidString {
-                return lhs.windowGroupID.uuidString < rhs.windowGroupID.uuidString
-            }
-            if lhs.tabIndex != rhs.tabIndex {
-                return lhs.tabIndex < rhs.tabIndex
-            }
-            return lhs.timestamp < rhs.timestamp
-        }
-    }
-
     /// 退出清理：保留当前仍打开文档（已注册标签）的备份，删除其余备份文件。
     ///
     /// 会话恢复的正确语义是"退出时仍打开的窗口/标签"。正常使用中关窗即删除备份
@@ -409,31 +366,6 @@ final class NPBackupService {
             let name = (file as NSString).deletingPathExtension
             guard let backupID = UUID(uuidString: name),
                   activeIDs.contains(backupID) else {
-                try? fileManager.removeItem(at: backupDirectory.appendingPathComponent(file))
-                continue
-            }
-        }
-    }
-
-    /// 清理无效备份文件：删除目录中不属于 `validBackupIDs` 的一切文件。
-    ///
-    /// 覆盖四类垃圾：超期备份、原子写入临时残留（`*.sb-*` 等不匹配 `<UUID>.txt/.json` 的文件名）、
-    /// 孤儿单边文件（`.json` 缺 `.txt` 或反之）、元数据损坏的记录。
-    /// 典型用法：启动时以 `recoverableRecords()` 的结果为白名单调用，加载有效备份后清掉其余。
-    /// - Parameter validBackupIDs: 需保留的备份标识集合
-    func pruneInvalidBackupFiles(keeping validBackupIDs: Set<UUID>) {
-        guard let files = try? fileManager.contentsOfDirectory(atPath: backupDirectory.path) else {
-            return
-        }
-        for file in files {
-            if file == Self.sessionStateFileName {
-                continue
-            }
-            let name = (file as NSString).deletingPathExtension
-            let ext = (file as NSString).pathExtension
-            guard ext == Self.contentFileExtension || ext == Self.metadataFileExtension,
-                  let backupID = UUID(uuidString: name),
-                  validBackupIDs.contains(backupID) else {
                 try? fileManager.removeItem(at: backupDirectory.appendingPathComponent(file))
                 continue
             }
@@ -563,19 +495,7 @@ final class NPBackupService {
         }
     }
 
-    // MARK: - 私有：文件操作
-
-    /// 原子写入会话生命周期状态。
-    private func writeSessionState(cleanShutdown: Bool) {
-        let state = NPBackupSessionState(schemaVersion: 1,
-                                         cleanShutdown: cleanShutdown,
-                                         timestamp: Date().timeIntervalSince1970)
-        guard let data = try? JSONEncoder().encode(state) else {
-            return
-        }
-        let stateURL = backupDirectory.appendingPathComponent(Self.sessionStateFileName)
-        try? data.write(to: stateURL, options: .atomic)
-    }
+    // MARK: - 失败上报
 
     private func postBackupFailure(_ error: NPBackupError) {
         NotificationCenter.default.post(
@@ -585,159 +505,4 @@ final class NPBackupService {
         )
     }
 
-    /// 写入备份文件对（后台 IO，目录须已存在，采用临时文件 + 原子替换避免半成品快照）。
-    /// - Parameters:
-    ///   - backupID: 备份标识
-    ///   - content: 文本内容
-    ///   - metadata: 元数据
-    ///   - directory: 备份目录
-    private nonisolated static func writeBackupFiles(backupID: UUID, content: String,
-                                                     metadata: NPBackupMetadata, in directory: URL) throws {
-        let fileManager = FileManager.default
-        let contentURL = directory.appendingPathComponent("\(backupID.uuidString).\(contentFileExtension)")
-        let metadataURL = directory.appendingPathComponent("\(backupID.uuidString).\(metadataFileExtension)")
-        let tempContentURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(contentFileExtension)")
-        let tempMetadataURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(metadataFileExtension)")
-
-        let contentData = Data(content.utf8)
-        let metadataData = try JSONEncoder().encode(metadata)
-        let currentBytes = directoryByteCount(in: directory,
-                                               excluding: [contentURL, metadataURL,
-                                                           tempContentURL, tempMetadataURL])
-        guard currentBytes + contentData.count + metadataData.count <= maxBackupDirectoryBytes else {
-            throw NPBackupError.storageLimitExceeded
-        }
-
-        try contentData.write(to: tempContentURL, options: .atomic)
-        try metadataData.write(to: tempMetadataURL, options: .atomic)
-
-        try replaceOrMove(tempURL: tempContentURL, destinationURL: contentURL,
-                          fileManager: fileManager)
-        try replaceOrMove(tempURL: tempMetadataURL, destinationURL: metadataURL,
-                          fileManager: fileManager)
-    }
-
-    private nonisolated static func replaceOrMove(tempURL: URL, destinationURL: URL,
-                                                  fileManager: FileManager) throws {
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.replaceItemAt(destinationURL, withItemAt: tempURL,
-                                          backupItemName: nil,
-                                          options: .usingNewMetadataOnly)
-        } else {
-            try fileManager.moveItem(at: tempURL, to: destinationURL)
-        }
-    }
-
-    private nonisolated static func directoryByteCount(in directory: URL,
-                                                       excluding excludedURLs: [URL]) -> Int {
-        let excludedPaths = Set(excludedURLs.map(\.path))
-        return (try? FileManager.default.contentsOfDirectory(at: directory,
-                                                              includingPropertiesForKeys: [.fileSizeKey],
-                                                              options: [.skipsHiddenFiles]))?.reduce(0) { total, url in
-            guard !excludedPaths.contains(url.path),
-                  let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
-                  let fileSize = values.fileSize else {
-                return total
-            }
-            return total + fileSize
-        } ?? 0
-    }
-
-    /// 计算快照内容摘要，用于恢复前校验内容与元数据是否属于同一提交。
-    private nonisolated static func contentHash(for content: String) -> String {
-        SHA256.hash(data: Data(content.utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-
-    /// 删除备份文件对。
-    /// - Parameter backupID: 备份标识
-    private func deleteBackupFiles(backupID: UUID) {
-        for ext in [Self.contentFileExtension, Self.metadataFileExtension] {
-            let url = backupDirectory.appendingPathComponent("\(backupID.uuidString).\(ext)")
-            try? fileManager.removeItem(at: url)
-        }
-    }
-
-    /// 在同一 IO 队列中删除并同步等待，确保不会被旧快照写入重新创建，
-    /// 且调用方返回时缓存已经删除。
-    private func enqueueDeleteBackupFiles(backupID: UUID) {
-        let directory = backupDirectory
-        writeQueue.sync {
-            let fileManager = FileManager.default
-            for ext in [Self.contentFileExtension, Self.metadataFileExtension] {
-                let url = directory.appendingPathComponent("\(backupID.uuidString).\(ext)")
-                try? fileManager.removeItem(at: url)
-            }
-        }
-    }
-
-    /// 读取备份记录（元数据与内容文件均存在才有效，且必须满足恢复所需字段合法性）。
-    /// - Parameter metadataFileName: 元数据文件名
-    /// - Returns: 备份记录
-    private func loadRecord(metadataFileName: String) -> NPBackupRecord? {
-        guard var metadata = loadMetadata(metadataFileName: metadataFileName) else {
-            return nil
-        }
-        let backupID = backupID(fromMetadataFileName: metadataFileName)
-        let contentURL = backupDirectory
-            .appendingPathComponent("\(backupID.uuidString).\(Self.contentFileExtension)")
-        guard fileManager.fileExists(atPath: contentURL.path),
-              let windowGroupID = UUID(uuidString: metadata.windowGroupID),
-              metadata.cursorPosition >= 0,
-              metadata.tabIndex >= 0,
-              metadata.timestamp > 0 else {
-            return nil
-        }
-        guard let content = try? String(contentsOf: contentURL, encoding: .utf8) else {
-            return nil
-        }
-        if let expectedHash = metadata.contentHash,
-           Self.contentHash(for: content) != expectedHash {
-            return nil
-        }
-        if let originalFilePath = metadata.originalFilePath, originalFilePath.isEmpty {
-            return nil
-        }
-        if metadata.schemaVersion != 2 || metadata.revision == nil || metadata.contentHash == nil {
-            metadata.schemaVersion = 2
-            metadata.revision = metadata.revision ?? 0
-            metadata.contentHash = Self.contentHash(for: content)
-            migrateMetadata(metadata, metadataFileName: metadataFileName)
-        }
-        let item = NPBackupItem(
-            backupContentURL: contentURL,
-            originalFileURL: metadata.originalFilePath.map { path in URL(fileURLWithPath: path) },
-            cursorPosition: metadata.cursorPosition,
-            encoding: String.Encoding(rawValue: metadata.encodingRawValue),
-            lineEnding: NPLineEnding(rawValue: metadata.lineEndingRawValue) ?? .lf
-        )
-        return NPBackupRecord(item: item, windowGroupID: windowGroupID,
-                              tabIndex: metadata.tabIndex, timestamp: metadata.timestamp)
-    }
-
-    /// 将旧版 metadata 升级为当前格式；升级失败不影响本次恢复。
-    private func migrateMetadata(_ metadata: NPBackupMetadata, metadataFileName: String) {
-        guard let data = try? JSONEncoder().encode(metadata) else {
-            return
-        }
-        try? data.write(to: backupDirectory.appendingPathComponent(metadataFileName), options: .atomic)
-    }
-
-    /// 读取元数据。
-    /// - Parameter metadataFileName: 元数据文件名
-    /// - Returns: 元数据
-    private func loadMetadata(metadataFileName: String) -> NPBackupMetadata? {
-        let url = backupDirectory.appendingPathComponent(metadataFileName)
-        guard let data = try? Data(contentsOf: url) else {
-            return nil
-        }
-        return try? JSONDecoder().decode(NPBackupMetadata.self, from: data)
-    }
-
-    /// 从元数据文件名解析备份标识。
-    /// - Parameter metadataFileName: 元数据文件名
-    /// - Returns: 备份标识（非法名返回新 UUID，调用方已保证文件名合法）
-    private func backupID(fromMetadataFileName metadataFileName: String) -> UUID {
-        let name = (metadataFileName as NSString).deletingPathExtension
-        return UUID(uuidString: name) ?? UUID()
-    }
 }
