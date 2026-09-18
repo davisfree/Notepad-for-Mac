@@ -9,6 +9,7 @@
 - 新增 `NPTabBarViewLayoutTests`：标签卡片定位回归测试（新建即归位、多标签顺序、关闭后补位、菜单"新建标签页"路径）
 
 ### Changed
+- 构建产物目录调整为**直接落在仓库 `build/` 根下**：新增 `CONFIGURATION_BUILD_DIR: $(SRCROOT)/build`，App 位于 `build/Notepad.app`（本机绝对路径 `/Users/davisx/kimi/notepad/Notepad/build/Notepad.app`），与 `Scripts/dev-build.sh` 的既有约定统一；`SYMROOT` 仍为 `$(SRCROOT)/build`（中间产物）。Debug/Release 共用该目录（后构建者覆盖），发布仍由 `Scripts/release.sh` 走 archive + 导出 `build/Release/`
 - "保存/另存为"改为存在可编辑（非只读）文档即恒可用，对齐 Windows 11 记事本；未修改时 `⌘S` 交由 `NSDocument.save(_:)` 处理（未命名文档弹保存面板）；只读大文件（>10MB）两项一并禁用
 - "当前活跃标签组窗口"解析收敛为单一事实来源 `NPTabWindowManager.activeWindowController()`（key → main → 最近活跃 → 最近登记的可见窗口），`AppDelegate` 的保存/另存为/打印/页面设置/始终在最前统一复用之
 

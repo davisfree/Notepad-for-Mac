@@ -13,9 +13,17 @@ settings:
     ARCHS: "$(ARCHS_STANDARD)"
     ONLY_ACTIVE_ARCH: "NO"
     CODE_SIGN_STYLE: Automatic
-    # 构建产物固定输出到仓库内 build/（build/<配置>/Notepad.app），
-    # 不再落到 ~/Library/Developer/Xcode/DerivedData
+    # 构建产物固定输出到仓库 build/ 目录（不再落到 ~/Library/Developer/Xcode/DerivedData）：
+    #   SYMROOT                  — 中间产物（*.build / XCBuildData / PrecompiledModules）
+    #   CONFIGURATION_BUILD_DIR  — 最终产物（App / 测试 bundle），直接落在 build/ 根下
+    #
+    # 本机绝对路径：/Users/davisx/kimi/notepad/Notepad/build/Notepad.app
+    # （$(SRCROOT) 即仓库根，CI runner 上自动展开为各自的 checkout 路径，不能写死绝对路径）
+    #
+    # 注意：Debug/Release 共用同一产物目录（后构建的覆盖先构建的）。发布不走这条路径，
+    # 由 `Scripts/release.sh` 走 archive + 导出到 build/Release/。
     SYMROOT: "$(SRCROOT)/build"
+    CONFIGURATION_BUILD_DIR: "$(SRCROOT)/build"
 
 targets:
   Notepad:

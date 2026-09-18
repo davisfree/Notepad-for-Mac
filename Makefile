@@ -2,7 +2,7 @@
 
 build:
 	xcodebuild -scheme Notepad -configuration Debug build
-	@echo "==> 产物: build/Debug/Notepad.app"
+	@echo "==> 产物: $(CURDIR)/build/Notepad.app"
 
 test:
 	xcodebuild test -scheme Notepad -destination 'platform=macOS'

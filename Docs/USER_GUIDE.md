@@ -16,7 +16,8 @@
 
 ```bash
 ./Scripts/setup.sh && make build
-# 产物：build/Debug/Notepad.app；无 Xcode 可用 ./Scripts/dev-build.sh
+# 产物：build/Notepad.app（绝对路径 /Users/davisx/kimi/notepad/Notepad/build/Notepad.app）；
+# 无 Xcode 可用 ./Scripts/dev-build.sh
 ```
 
 ## 2. 快速上手
