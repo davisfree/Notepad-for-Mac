@@ -143,10 +143,49 @@ final class NPTabBarView: NSView {
 
     // MARK: - 标签管理
 
-    /// 添加标签。
+    /// 添加标签（追加到最右端）。
     /// - Parameter tab: 标签项
     func addTab(_ tab: NPTabItem) {
-        tabs.append(tab)
+        insertTab(tab, at: tabs.count)
+    }
+
+    /// 在指定位置插入标签（越界夹取到 `0...count`）。
+    /// - Parameters:
+    ///   - tab: 标签项
+    ///   - index: 插入位置（`0` = 最左端）
+    func insertTab(_ tab: NPTabItem, at index: Int) {
+        let clamped = min(max(index, 0), tabs.count)
+        tabs.insert(tab, at: clamped)
+        let tabView = makeTabView(for: tab)
+        tabViews.insert(tabView, at: clamped)
+        addSubview(tabView)
+        syncSubviewOrder()
+        updateSelectionStyles()
+        layoutCards()
+        needsLayout = true
+    }
+
+    /// 保持子视图顺序与 `tabs` / `tabViews` 逻辑顺序一致。
+    ///
+    /// `addSubview` 只会把新视图追加到子视图列表末尾，因此前置插入（新建标签页落在最左端）
+    /// 会让 `subviews` 顺序与逻辑顺序不一致；卡片本身不重叠，但两者一致才能让绘制/命中测试
+    /// 与布局断言按同一种顺序解读。
+    private func syncSubviewOrder() {
+        guard tabViews.count > 1 else {
+            return
+        }
+        for index in 1 ..< tabViews.count {
+            guard subviews.indices.contains(index), subviews[index] !== tabViews[index] else {
+                continue
+            }
+            addSubview(tabViews[index], positioned: .above, relativeTo: tabViews[index - 1])
+        }
+    }
+
+    /// 装配单个标签视图（选中/关闭/拖拽/右键回调均按 `tabViews` 中的当前位置解析索引）。
+    /// - Parameter tab: 标签项
+    /// - Returns: 标签视图
+    private func makeTabView(for tab: NPTabItem) -> NPTabItemView {
         let tabView = NPTabItemView(frame: .zero)
         tabView.title = tab.title
         tabView.isModified = tab.isModified
@@ -180,11 +219,7 @@ final class NPTabBarView: NSView {
             }
             showContextMenu(for: index, event: event)
         }
-        tabViews.append(tabView)
-        addSubview(tabView)
-        updateSelectionStyles()
-        layoutCards()
-        needsLayout = true
+        return tabView
     }
 
     /// 移除标签。
@@ -196,6 +231,7 @@ final class NPTabBarView: NSView {
         tabs.remove(at: index)
         let removed = tabViews.remove(at: index)
         removed.removeFromSuperview()
+        syncSubviewOrder()
         updateSelectionStyles()
         layoutCards()
         needsLayout = true

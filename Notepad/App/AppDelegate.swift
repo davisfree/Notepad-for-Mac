@@ -71,7 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let document = try? self?.makeTrackedUntitledDocument() else {
                 return
             }
-            NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document)
+            // 与 ⌘N 一致：新文档插入当前窗口标签组的最左端
+            NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document, position: .leading)
         }
         // 初始化主题管理器：读取偏好并应用 NSApp 级外观（已开窗口即时跟随）
         _ = NPThemeManager.shared
@@ -233,14 +234,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// 文件 → 新建标签页（⌘T）：创建无标题文档但不 showWindows，加入当前窗口标签组。
+    /// 文件 → 新建标签页（⌘T）：创建无标题文档但不 showWindows，**插入当前窗口标签组的最左端**。
     /// - Parameter sender: 菜单项
+    /// - Note: 插入位置为用户偏好——新建标签页落在最左侧，且立即成为当前标签；
+    ///   打开文件、会话恢复、拖拽重排仍按既有顺序追加，不受影响
     @objc func newTab(_ sender: Any?) {
         do {
             guard let document = try makeTrackedUntitledDocument() else {
                 return
             }
-            NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document)
+            NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document, position: .leading)
         } catch {
             // 创建失败：NSDocumentController 已记录错误，无进一步恢复路径
         }

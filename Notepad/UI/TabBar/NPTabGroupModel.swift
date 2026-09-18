@@ -42,6 +42,20 @@ struct NPTabGroupModel {
         return selectedIndex
     }
 
+    /// 在指定位置插入标签并选中（"新建标签页落在最左侧"的用户偏好走 `index: 0`）。
+    /// - Parameters:
+    ///   - identifier: 标签标识符
+    ///   - index: 插入位置（越界夹取到 `0...count`）
+    /// - Returns: 新标签索引
+    /// - Note: 插入点之后的标签索引整体后移；因新标签立即被选中，选中索引即插入点。
+    @discardableResult
+    mutating func insert(_ identifier: UUID, at index: Int) -> Int {
+        let clamped = min(max(index, 0), identifiers.count)
+        identifiers.insert(identifier, at: clamped)
+        selectedIndex = clamped
+        return clamped
+    }
+
     /// 移除标签并修正选中索引（移除项在当前项之前则前移；移除当前项则选中后继或前驱；空组为 -1）。
     /// - Parameter index: 标签索引（越界忽略）
     mutating func remove(at index: Int) {

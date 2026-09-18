@@ -70,13 +70,16 @@ final class NPEditorWindowController: NSWindowController {
     // MARK: - 标签管理
 
     /// 添加标签（⌘T / 打开文件路由经此进入当前窗口）；大文件只读模式提示并禁用编辑。
-    /// - Parameter document: 文档
-    func addTab(for document: NPTextDocument) {
-        tabBarController.addTab(for: document)
+    /// - Parameters:
+    ///   - document: 文档
+    ///   - position: 插入位置（`⌘N` 新建标签页传 `.leading`，其余默认追加到最右端）
+    func addTab(for document: NPTextDocument,
+                position: NPTabBarController.InsertionPosition = .trailing) {
+        tabBarController.addTab(for: document, position: position)
         guard document.isReadOnly else {
             return
         }
-        if let entry = tabBarController.entries.last, entry.document === document {
+        if let entry = tabBarController.entries.first(where: { $0.document === document }) {
             entry.editorController.editorView.isEditable = false
         }
         presentLargeFileAlert()

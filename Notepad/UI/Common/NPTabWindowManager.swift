@@ -12,6 +12,7 @@ import AppKit
 ///
 /// 决定文档进入现有窗口（作为新标签）还是新建窗口（对齐 Win11 行为）：
 /// - 打开文件/新建标签：当前有窗口则插入为标签，无窗口则新窗口；
+///   其中**新建标签页（⌘N）插到最左端**（用户偏好），打开文件与会话恢复保持追加到最右端；
 /// - 新建窗口（⌘N）：`preferExistingWindow` 临时置 `false` 强制新窗口；
 /// - 拖出标签：摘除后由 `openInNewWindow` 托管为新窗口。
 @MainActor
@@ -57,10 +58,13 @@ final class NPTabWindowManager {
     }
 
     /// 新建文档入口（⌘T）：当前窗口加标签，无窗口则新窗口。
-    /// - Parameter document: 文档（已注册到 `NSDocumentController`，未经 `makeWindowControllers`）
-    func addDocumentAsTabOrNewWindow(_ document: NPTextDocument) {
+    /// - Parameters:
+    ///   - document: 文档（已注册到 `NSDocumentController`，未经 `makeWindowControllers`）
+    ///   - position: 标签插入位置（新文档传 `.leading`：新建标签页落在最左端）
+    func addDocumentAsTabOrNewWindow(_ document: NPTextDocument,
+                                     position: NPTabBarController.InsertionPosition = .trailing) {
         if let current = activeWindowController() {
-            current.addTab(for: document)
+            current.addTab(for: document, position: position)
             current.window?.makeKeyAndOrderFront(nil)
             return
         }

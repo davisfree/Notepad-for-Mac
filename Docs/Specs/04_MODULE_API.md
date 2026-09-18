@@ -481,8 +481,11 @@ public final class NPTabBarView: NSView {
 
     // MARK: - 方法
 
-    /// 添加标签
+    /// 添加标签（追加到最右端）
     public func addTab(_ tab: NPTabItem)
+
+    /// 在指定位置插入标签（`index == 0` 即最左端）
+    public func insertTab(_ tab: NPTabItem, at index: Int)
 
     /// 移除标签
     public func removeTab(at index: Int)
@@ -514,10 +517,16 @@ public protocol NPTabBarDelegate: AnyObject {
 }
 ```
 
-> **布局契约（v1.0.4）**：`addTab` / `removeTab` / `reloadTabs` 必须在返回前完成卡片重排——
+> **插入位置契约（v1.0.4 起）**：`NPTabBarController.InsertionPosition` 决定新标签落点——
+> `.leading`（文件 → 新建标签页 `⌘N`）插入索引 0 并选中，`.trailing`（默认：打开文件、会话恢复、
+> 复制标签、拖拽重排）追加到最右端。`NPTabGroupModel.insert(_:at:)` 与 `NPTabBarView.insertTab(_:at:)`
+> 均对越界索引夹取到端点。前置插入会使既有标签的会话序号整体后移，因此 `addTab` 会按当前顺序
+> 重登记全部标签的 `windowGroupID` / `tabIndex`（否则重启恢复会丢序）。
+>
+> **布局契约（v1.0.4 起）**：`addTab` / `insertTab` / `removeTab` / `reloadTabs` 必须在返回前完成卡片重排——
 > 卡片位置由 `NPTabBarView.layout()` 计算，而 AppKit 要到下一个更新周期才调用它；若不在增删时
-> 同步重排，新卡片会保持 `frame == .zero`，即被画在标签栏**最左端**（后加入者还在最上层），
-> 表现为"点击新建标签页后新标签出现在最左边而不是最右边"。故 `layoutCards()` 由增删路径直接调用，
+> 同步重排，新卡片会保持 `frame == .zero`，即被画在标签栏原点（且后加入者在最上层），
+> 表现为新标签未停在应有的插入位置。故 `layoutCards()` 由增删路径直接调用，
 > `layout()` 仅作为窗口尺寸变化时的复算入口。
 
 ### 3.3 NPFindBarView

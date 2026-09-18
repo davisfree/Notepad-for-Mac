@@ -9,12 +9,13 @@
 - 新增 `NPTabBarViewLayoutTests`：标签卡片定位回归测试（新建即归位、多标签顺序、关闭后补位、菜单"新建标签页"路径）
 
 ### Changed
+- 文件 → 新建标签页（`⌘N`）的插入位置改为**最左端**（用户偏好）：新标签插入索引 0 并立即选中，既有标签整体后移；打开文件、会话恢复、拖拽重排、复制标签仍为追加到最右端。新增 `NPTabBarController.InsertionPosition`（`.leading` / `.trailing`）、`NPTabBarView.insertTab(_:at:)`、`NPTabGroupModel.insert(_:at:)`；前置插入后按当前顺序重登记全部标签的会话序号
 - 构建产物目录调整为**直接落在仓库 `build/` 根下**：新增 `CONFIGURATION_BUILD_DIR: $(SRCROOT)/build`，App 位于 `build/Notepad.app`（本机绝对路径 `/Users/davisx/kimi/notepad/Notepad/build/Notepad.app`），与 `Scripts/dev-build.sh` 的既有约定统一；`SYMROOT` 仍为 `$(SRCROOT)/build`（中间产物）。Debug/Release 共用该目录（后构建者覆盖），发布仍由 `Scripts/release.sh` 走 archive + 导出 `build/Release/`
 - "保存/另存为"改为存在可编辑（非只读）文档即恒可用，对齐 Windows 11 记事本；未修改时 `⌘S` 交由 `NSDocument.save(_:)` 处理（未命名文档弹保存面板）；只读大文件（>10MB）两项一并禁用
 - "当前活跃标签组窗口"解析收敛为单一事实来源 `NPTabWindowManager.activeWindowController()`（key → main → 最近活跃 → 最近登记的可见窗口），`AppDelegate` 的保存/另存为/打印/页面设置/始终在最前统一复用之
 
 ### Fixed
-- 修复"点击新建标签页后新标签显示在标签栏最左边而不是最右边"：卡片位置只在 `NPTabBarView.layout()` 中计算，而 AppKit 要到下一个更新周期才调用它，期间新卡片保持 `frame == .zero`（即标签栏原点、最左端，且因后加入而位于最上层）。现抽出 `layoutCards()` 并在 `addTab` / `removeTab` / `reloadTabs` 中同步调用，增删标签后立即归位；同时补齐"关闭左侧标签后剩余卡片立即前移补位"
+- 修复"增删标签后卡片未立即归位"：卡片位置只在 `NPTabBarView.layout()` 中计算，而 AppKit 要到下一个更新周期才调用它，期间新卡片保持 `frame == .zero`（标签栏原点，且因后加入而位于最上层），表现为新标签未停在应有的插入位置、下一次布局才跳过去。现抽出 `layoutCards()` 并在增删/重建标签时同步调用；同时补齐"关闭左侧标签后剩余卡片立即前移补位"
 - 加固会话恢复测试的隔离性：`NPSessionRestoreTests` 按完整路径匹配恢复出的文档（测试宿主会恢复用户真实会话，仅比 `lastPathComponent` 会误取同名文件）
 - 修复文件菜单"保存/另存为/打印"在 App 非激活、被面板抢占或菜单跟踪期间（`NSApp.mainWindow` 为 `nil`）集体变灰、且对应动作静默失效的问题（`currentDocument()` 曾单点依赖 `NSApp.mainWindow`）；DEBUG 构建新增 `menu` 分类诊断日志
 - 修复"当前文档"回退解析退化为"最近登记的窗口"（通常是最后新建的窗口）导致"新建文档可保存、其它已打开文件恒不可保存"的问题：`NPTabWindowManager` 现追踪每个登记窗口的 `didBecomeKey`，菜单跟踪期间以最近活跃窗口为准

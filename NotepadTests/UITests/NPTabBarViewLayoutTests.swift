@@ -12,10 +12,12 @@ import XCTest
 
 /// 标签栏卡片定位回归测试。
 ///
-/// 背景（真实缺陷）：卡片位置只在 `NPTabBarView.layout()` 里计算，而 AppKit 要到下一个
-/// 更新周期才调用它。于是 `addTab` 之后新卡片会保持 `frame == .zero`——也就是被画在
-/// 标签栏**最左端**（且因后加入而位于最上层），用户看到的就是"新建的标签显示在标签栏
-/// 最左边而不是最右边"。因此断言必须发生在 `addTab` 返回的那一刻，不能先手动触发布局。
+/// 两个关注点：
+/// 1. **插入位置（用户偏好）**：文件 → 新建标签页（⌘N）的新标签落在标签栏**最左端**；
+///    打开文件、会话恢复、拖拽重排等路径仍追加到最右端并保序。
+/// 2. **布局时机**：卡片位置只在 `NPTabBarView.layout()` 里算，而 AppKit 要到下一个更新周期
+///    才调用它；若增删标签时不主动重排，新卡片会带着 `frame == .zero` 停在标签栏最左端。
+///    因此断言必须发生在增删返回的那一刻，不能先手动触发布局。
 @MainActor
 final class NPTabBarViewLayoutTests: XCTestCase {
 
@@ -42,31 +44,37 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         super.tearDown()
     }
 
-    /// 新建标签必须在 `addTab` 返回时就已经位于最右侧（不得等待 AppKit 的延迟布局）。
-    func testNewTabIsRightmostImmediatelyAfterAdd() throws {
+    /// 前置插入（新建标签页）必须立刻占据最左端，且既有标签整体后移。
+    func testLeadingInsertLandsLeftmostImmediately() throws {
         _ = try makeWindowWithFirstTab()
 
         let bar = windowController.tabBarController.tabBar
         bar.layoutSubtreeIfNeeded()
+        let firstTabFrame = try XCTUnwrap(bar.subviews.first?.frame)
 
         let document = NPTextDocument()
         documents.append(document)
-        windowController.addTab(for: document)
+        windowController.addTab(for: document, position: .leading)
 
         let frames = bar.subviews.map(\.frame)
         XCTAssertEqual(frames.count, 2, "标签栏子视图数应与标签数一致")
+        XCTAssertEqual(frames[0].midX, firstTabFrame.midX, accuracy: 0.5,
+                       "新标签必须占据第一张卡片的位置（最左端）")
         XCTAssertGreaterThan(frames[1].minX, frames[0].minX,
-                             "新建标签必须在 addTab 返回时就位于最右，而不是停在 frame=.zero（最左端）")
-        XCTAssertEqual(bar.selectedIndex, 1, "新建标签应被选中（最右）")
+                             "既有标签必须整体后移")
+        XCTAssertEqual(bar.selectedIndex, 0, "新建标签应被选中（最左端）")
+        XCTAssertTrue(windowController.tabBarController.entries[0].document === document)
     }
 
-    /// 多个标签时 x 坐标必须严格递增，且不会停留在最左端。
-    func testTabsAreLaidOutLeftToRightWithoutDeferredPass() throws {
+    /// 追加路径（打开文件 / 会话恢复 / 复制标签）仍为最右端，且保序。
+    func testTrailingAddsStayRightmostAndKeepOrder() throws {
         _ = try makeWindowWithFirstTab()
 
         let bar = windowController.tabBarController.tabBar
+        var added: [NPTextDocument] = []
         for _ in 0 ..< 2 {
             let document = NPTextDocument()
+            added.append(document)
             documents.append(document)
             windowController.addTab(for: document)
         }
@@ -74,12 +82,14 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         let frames = bar.subviews.map(\.frame)
         XCTAssertEqual(frames.count, 3)
         XCTAssertEqual(frames[0].minX, NPTabBarView.barLeadingInset, accuracy: 0.5,
-                       "首个标签应在左端内缩处")
+                       "首个标签仍在左端内缩处（追加不改变既有顺序）")
         for index in 1 ..< frames.count {
             XCTAssertGreaterThan(frames[index].minX, frames[index - 1].minX,
                                  "第 \(index + 1) 个标签应在第 \(index) 个标签右侧")
         }
         XCTAssertEqual(bar.selectedIndex, 2, "最后一个标签应被选中")
+        XCTAssertTrue(windowController.tabBarController.entries[1].document === added[0])
+        XCTAssertTrue(windowController.tabBarController.entries[2].document === added[1])
     }
 
     /// 关闭左侧标签后，剩余标签必须立即前移补位（同样不能等待延迟布局）。
@@ -101,28 +111,31 @@ final class NPTabBarViewLayoutTests: XCTestCase {
         XCTAssertEqual(afterFrames[0].minX, NPTabBarView.barLeadingInset, accuracy: 0.5)
     }
 
-    /// 复现用户路径：文件 → 新建标签页（`AppDelegate.newTab(_:)`）后，新标签必须在最右侧。
-    func testMenuNewTabAppendsToRightmost() throws {
+    /// 复现用户路径：文件 → 新建标签页（`AppDelegate.newTab(_:)`）后，新标签必须在**最左端**。
+    func testMenuNewTabInsertsAtLeftmost() throws {
         let window = try makeWindowWithFirstTab()
         let bar = windowController.tabBarController.tabBar
+        let existingDocument = try XCTUnwrap(windowController.tabBarController.entries.first?.document)
 
-        // 让路由把本窗口认作"最近活跃窗口"（测试宿主无 key/main 窗口）
+        // 让路由把本窗口认作"最近活跃窗口"（测试宿主没有 key/main 窗口）
         NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
 
         let appDelegate = try XCTUnwrap(NSApp.delegate as? AppDelegate)
         appDelegate.newTab(nil)
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
-        window.contentView?.layoutSubtreeIfNeeded()
 
         let entries = windowController.tabBarController.entries
         documents.append(contentsOf: entries.map(\.document))
 
         XCTAssertEqual(entries.count, 2, "菜单新建标签页应只增加一个标签")
         XCTAssertEqual(bar.subviews.count, 2, "标签栏子视图数应与标签数一致")
+        XCTAssertEqual(bar.subviews[0].frame.minX, NPTabBarView.barLeadingInset, accuracy: 0.5,
+                       "新建标签应位于最左端")
         XCTAssertGreaterThan(bar.subviews[1].frame.minX, bar.subviews[0].frame.minX,
-                             "菜单新建的标签应位于最右")
-        XCTAssertEqual(bar.selectedIndex, 1, "新建标签应被选中")
+                             "原标签应移到新建标签右侧")
+        XCTAssertEqual(bar.selectedIndex, 0, "新建标签应被选中（最左端）")
+        XCTAssertTrue(entries[1].document === existingDocument, "原标签应后移一位而不是被替换")
     }
 
     // MARK: - 辅助

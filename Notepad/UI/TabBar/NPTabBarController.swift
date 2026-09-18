@@ -17,6 +17,14 @@ final class NPTabBarController: NPTabBarDelegate {
 
     // MARK: - 类型
 
+    /// 新标签在标签栏中的插入位置。
+    enum InsertionPosition {
+        /// 追加到最右端（打开文件、会话恢复、复制标签等需要保序的场景）
+        case trailing
+        /// 插入到最左端（文件 → 新建标签页，用户偏好）
+        case leading
+    }
+
     /// 单个标签的全部装配（文档 + 各控制器 + 内容视图）。
     struct TabEntry {
         /// 标签标识
@@ -87,21 +95,31 @@ final class NPTabBarController: NPTabBarDelegate {
     // MARK: - 标签管理
 
     /// 添加标签（装配内容、接入文档状态回调、注册会话备份、选中新标签）。
-    /// - Parameter document: 文档
-    func addTab(for document: NPTextDocument) {
+    /// - Parameters:
+    ///   - document: 文档
+    ///   - position: 插入位置（默认追加到最右端；`⌘N` 新建标签页传 `.leading` 落在最左端）
+    func addTab(for document: NPTextDocument, position: InsertionPosition = .trailing) {
         guard let makeEntry else {
             return
         }
         let entry = makeEntry(document)
-        entries.append(entry)
-        model.append(entry.identifier)
+        switch position {
+        case .trailing:
+            entries.append(entry)
+            model.append(entry.identifier)
+        case .leading:
+            entries.insert(entry, at: 0)
+            model.insert(entry.identifier, at: 0)
+        }
         wireDocumentCallbacks(entry)
-        tabBar.addTab(makeTabItem(for: entry))
+        tabBar.insertTab(makeTabItem(for: entry), at: model.selectedIndex)
         entry.statusBarController.statusBar.isHidden = statusBarsHidden
         NPBackupService.shared.registerDocument(document)
-        NPBackupService.shared.noteWindowContext(windowGroupID: windowGroupID,
-                                                 tabIndex: entries.count - 1,
-                                                 for: document)
+        // 前置插入会让既有标签的会话序号整体后移，故按当前顺序重登记全部标签
+        for (index, item) in entries.enumerated() {
+            NPBackupService.shared.noteWindowContext(windowGroupID: windowGroupID,
+                                                     tabIndex: index, for: item.document)
+        }
         selectTab(at: model.selectedIndex)
     }
 

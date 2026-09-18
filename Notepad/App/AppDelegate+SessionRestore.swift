@@ -29,7 +29,9 @@ extension AppDelegate {
             }
             let windowController: NPEditorWindowController
             if let existing = windowControllersByGroup[record.windowGroupID] {
-                existing.addTab(for: document)
+                // 显式 `.trailing`：会话恢复必须按记录的标签序还原，
+                // 不能走"新建标签页插到最左端"的路径
+                existing.addTab(for: document, position: .trailing)
                 windowController = existing
             } else {
                 windowController = NPTabWindowManager.shared.openInNewWindow(document)
@@ -39,8 +41,10 @@ extension AppDelegate {
             if let backupID = UUID(uuidString: record.item.backupContentURL.deletingPathExtension().lastPathComponent) {
                 NPBackupService.shared.adoptBackup(backupID, for: document)
             }
-            if let entry = windowController.tabBarController.entries.last,
-               entry.document === document {
+            // 按文档身份定位装配：不用 `entries.last`（插入位置可变，末位未必是本文档）
+            if let entry = windowController.tabBarController.entries.first(where: {
+                $0.document === document
+            }) {
                 let length = (document.textContent as NSString).length
                 let location = min(max(record.item.cursorPosition, 0), length)
                 entry.editorController.editorView.selectedRange = NSRange(location: location, length: 0)

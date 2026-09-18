@@ -31,6 +31,33 @@ final class NPTabGroupModelTests: XCTestCase {
         XCTAssertEqual(sut.count, 2)
     }
 
+    /// 插入到最左端：新标签占据索引 0，既有标签整体后移，且新标签被选中。
+    func testInsertAtZeroPutsNewTabLeftmost() {
+        sut.append(ids[0])
+        sut.append(ids[1])
+        sut.insert(ids[2], at: 0)
+
+        XCTAssertEqual(sut.identifiers, [ids[2], ids[0], ids[1]], "新标签应在最左端，既有序不变")
+        XCTAssertEqual(sut.selectedIndex, 0, "新标签应被选中")
+    }
+
+    /// 插入越界时夹取到端点（负值 → 0，超长 → 末尾）。
+    func testInsertClampsIndex() {
+        sut.append(ids[0])
+        sut.insert(ids[1], at: -5)
+        XCTAssertEqual(sut.identifiers, [ids[1], ids[0]])
+        sut.insert(ids[2], at: 99)
+        XCTAssertEqual(sut.identifiers, [ids[1], ids[0], ids[2]])
+        XCTAssertEqual(sut.selectedIndex, 2)
+    }
+
+    /// 空组插入：等价于首个标签。
+    func testInsertIntoEmptyGroup() {
+        sut.insert(ids[0], at: 0)
+        XCTAssertEqual(sut.count, 1)
+        XCTAssertEqual(sut.selectedIndex, 0)
+    }
+
     /// 移除当前项之前的标签：选中索引前移。
     func testRemoveBeforeSelection() {
         for id in ids.prefix(3) {
