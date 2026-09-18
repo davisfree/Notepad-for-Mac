@@ -189,6 +189,6 @@ final class NPUserNotificationService {
 
     /// 降级：写入统一日志（只含提示文案，不含文件路径与内容）。
     private func logFallback(title: String, body: String, reason: String) {
-        logger.warning("Notification not shown (\(reason, privacy: .public)): \(title, privacy: .public) - \(body, privacy: .public)")
+        logger.warning("not shown (\(reason, privacy: .public)): \(title, privacy: .public) \(body, privacy: .public)")
     }
 }

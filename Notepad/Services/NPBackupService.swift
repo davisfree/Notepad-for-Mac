@@ -694,7 +694,7 @@ final class NPBackupService {
            Self.contentHash(for: content) != expectedHash {
             return nil
         }
-        guard metadata.originalFilePath == nil || !metadata.originalFilePath!.isEmpty else {
+        if let originalFilePath = metadata.originalFilePath, originalFilePath.isEmpty {
             return nil
         }
         if metadata.schemaVersion != 2 || metadata.revision == nil || metadata.contentHash == nil {

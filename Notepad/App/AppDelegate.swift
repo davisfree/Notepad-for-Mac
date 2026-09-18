@@ -187,7 +187,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// （实测返回后 `documents.count` 仍为 0），不补登记会导致
     /// `documents.isEmpty` 守卫失效而重复创建、最近文件/会话恢复丢失。
     /// - Returns: 无标题文档
-    private func makeTrackedUntitledDocument() throws -> NPTextDocument? {
+    /// - Note: 非 `private`：会话恢复拆分在 `AppDelegate+SessionRestore.swift`，两者共用。
+    func makeTrackedUntitledDocument() throws -> NPTextDocument? {
         guard let document = try NSDocumentController.shared.makeUntitledDocument(
             ofType: "public.plain-text") as? NPTextDocument else {
             return nil
@@ -200,7 +201,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 无任何文档时新建无标题窗口（启动与 reopen 共用，保证全路径恰好一个窗口）。
-    private func openUntitledWindowIfNoDocuments() {
+    /// - Note: 非 `private`：会话恢复拆分在 `AppDelegate+SessionRestore.swift`，两者共用。
+    func openUntitledWindowIfNoDocuments() {
         guard NSDocumentController.shared.documents.isEmpty else {
             return
         }
@@ -212,100 +214,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             NSAlert(error: error).runModal()
         }
-    }
-
-    // MARK: - 会话恢复（PRD FR-003）
-
-    /// 恢复上次会话：按窗口归属分组恢复标签（内容 + 光标）。
-    /// - Parameter records: 备份记录（已按组/标签序/时间戳排序）
-    private func restoreSession(from records: [NPBackupRecord]) {
-        var windowControllersByGroup: [UUID: NPEditorWindowController] = [:]
-        for record in records {
-            guard let document = restoreDocument(for: record) else {
-                continue
-            }
-            let windowController: NPEditorWindowController
-            if let existing = windowControllersByGroup[record.windowGroupID] {
-                existing.addTab(for: document)
-                windowController = existing
-            } else {
-                windowController = NPTabWindowManager.shared.openInNewWindow(document)
-                windowControllersByGroup[record.windowGroupID] = windowController
-            }
-            // 沿用既有备份标识（避免恢复后产生重复备份），并恢复光标位置
-            if let backupID = UUID(uuidString: record.item.backupContentURL.deletingPathExtension().lastPathComponent) {
-                NPBackupService.shared.adoptBackup(backupID, for: document)
-            }
-            if let entry = windowController.tabBarController.entries.last,
-               entry.document === document {
-                let length = (document.textContent as NSString).length
-                let location = min(max(record.item.cursorPosition, 0), length)
-                entry.editorController.editorView.selectedRange = NSRange(location: location, length: 0)
-            }
-        }
-        // 兜底：全部恢复失败时仍保证一个窗口
-        openUntitledWindowIfNoDocuments()
-    }
-
-    /// 恢复单个文档（三态：未命名 → 备份内容标脏；已存盘有改动 → 备份内容标脏；已存盘无改动 → 原样）。
-    /// - Parameter record: 备份记录
-    /// - Returns: 恢复的文档（原文件与备份均不可读时为 nil）
-    private func restoreDocument(for record: NPBackupRecord) -> NPTextDocument? {
-        let backupContent = try? String(contentsOf: record.item.backupContentURL, encoding: .utf8)
-        guard let originalFileURL = record.item.originalFileURL else {
-            // 未命名文档：恢复备份内容与光标；仅非空内容标脏（空文档与新建无异，不应提示未保存）
-            guard let document = try? makeTrackedUntitledDocument(), let backupContent else {
-                return nil
-            }
-            document.textContent = backupContent
-            if !backupContent.isEmpty {
-                document.updateChangeCount(.changeDone)
-            }
-            return document
-        }
-        // 已存盘文档：从原路径打开
-        guard let document = try? NPTextDocument(contentsOf: originalFileURL,
-                                                 ofType: "public.plain-text") else {
-            // 原文件已丢失：退化为未命名文档 + 备份内容；仅非空内容标脏
-            guard let fallback = try? makeTrackedUntitledDocument(), let backupContent else {
-                return nil
-            }
-            fallback.textContent = backupContent
-            if !backupContent.isEmpty {
-                fallback.updateChangeCount(.changeDone)
-            }
-            return fallback
-        }
-        let controller = NSDocumentController.shared
-        if !controller.documents.contains(where: { $0 === document }) {
-            controller.addDocument(document)
-        }
-        let fileModificationDate = try? originalFileURL.resourceValues(
-            forKeys: [.contentModificationDateKey]
-        ).contentModificationDate
-        if let backupContent,
-           NPBackupService.restoreDecision(
-               backupContent: backupContent,
-               fileContent: document.textContent,
-               backupTimestamp: record.timestamp,
-               fileModificationDate: fileModificationDate
-           ) == .useBackup {
-            document.textContent = backupContent
-            document.updateChangeCount(.changeDone)
-        } else if let backupContent,
-                  backupContent != document.textContent,
-                  fileModificationDate != nil {
-            presentRestoreConflictNotification()
-        }
-        return document
-    }
-
-    /// 提示用户原文件较新，因此恢复时保留了原文件内容。
-    private func presentRestoreConflictNotification() {
-        NPUserNotificationService.shared.deliver(
-            title: NSLocalizedString("Backup.RestoreConflict.Title", comment: "恢复冲突标题"),
-            body: NSLocalizedString("Backup.RestoreConflict.Message", comment: "恢复冲突说明")
-        )
     }
 
     // MARK: - 文件菜单动作
