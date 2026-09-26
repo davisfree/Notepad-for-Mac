@@ -2,12 +2,13 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.0.5] - 2026-09-26
 
 ### Added
 - 新增会话恢复回归用例（`NPSessionRestoreTests`）：系统窗口恢复必须被拒绝（`NPDocumentController` 的 `restoreWindow` 覆写）、窗口必须标记为不可恢复、同一文件必须复用已打开文档、同一文档不得重复成为标签、同一窗口的标签必须持久化同一个 `windowGroupID` 且标签序正确；同时校验委托方法已暴露给 ObjC 运行时（防"方法名写错 → AppKit 永不调用"的死代码回归）
 
 ### Changed
+- `Scripts/release.sh --unsigned` 的 ad-hoc 重签补上 `--entitlements` 与 `--options runtime`：此前遗漏会丢失 `app-sandbox` / 用户选定文件读写权限（会话恢复的 security-scoped bookmark 依赖）与 Hardened Runtime，使发布产物与归档不一致、行为与开发构建不同
 - `NPBackupService` 的元数据组装与"仅重写元数据"移入 `NPBackupService+Storage.swift`（主文件已贴 SwiftLint `file_length` / `type_body_length` 阈值）；为此 `Registration` / `registrations` / `makeMetadata` / `enqueueMetadataWrite` 改为模块内可见（Swift 的 `private` 是文件级作用域）
 
 ### Fixed

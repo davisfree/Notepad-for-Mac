@@ -37,8 +37,13 @@ if [ "$UNSIGNED" = "1" ]; then
     rm -rf "$APP_PATH" "$EXPORT_PATH/Notepad-$VERSION.dmg"
     mkdir -p "$EXPORT_PATH"
     cp -R "$ARCHIVE_PATH/Products/Applications/Notepad.app" "$APP_PATH"
-    # 移除归档时的签名（ad-hoc 重签，保证 AppKit 资源正确）
-    codesign --force --sign - "$APP_PATH"
+    # ad-hoc 重签：必须显式带上 entitlements 与 Hardened Runtime。
+    # 否则会丢掉 app-sandbox / 用户选定文件读写权限（会话恢复的 security-scoped
+    # bookmark 依赖它们）与运行时加固，产物与归档不一致，且行为与开发构建不同。
+    codesign --force --sign - \
+        --entitlements "Notepad/Supporting Files/Notepad.entitlements" \
+        --options runtime \
+        "$APP_PATH"
     hdiutil create -srcfolder "$APP_PATH" \
         -volname "Notepad" -format UDZO \
         -o "$EXPORT_PATH/Notepad-$VERSION.dmg"
