@@ -532,7 +532,12 @@ public protocol NPTabBarDelegate: AnyObject {
 > `NPTabBarDelegate.tabBarDidRequestNewTab(_:)` → `NPTabBarController.onNewTabRequested` 转发到该入口。
 > `NPTabGroupModel.insert(_:at:)` 与 `NPTabBarView.insertTab(_:at:)` 均对越界索引夹取到端点。
 > 前置插入会使既有标签的会话序号整体后移，因此 `addTab` 会按当前顺序重登记全部标签的
-> `windowGroupID` / `tabIndex`（否则重启恢复会丢序）。
+> `windowGroupID` / `tabIndex`，且该登记**立即落盘**（`NPBackupService.noteWindowContext`
+> 在值变化时触发仅元数据写入）——`windowGroupID` 决定重启后「几个窗口」、`tabIndex` 决定组内标签序。
+> 只改内存时，异常终止（关机/登出，不执行 `applicationShouldTerminate` 的整批刷盘）
+> 会留下按文档随机分配的旧分组，同一窗口的 N 个标签会在下次启动散成 N 个窗口。
+> `NPEditorWindowController.addTab(for:position:)` 对同一文档**幂等**（文档已在该标签组则直接返回），
+> 保证系统恢复与自研恢复叠加时不会产生重复标签。
 >
 > **布局契约（v1.0.4 起）**：`addTab` / `insertTab` / `removeTab` / `reloadTabs` 必须在返回前完成卡片重排——
 > 卡片位置由 `NPTabBarView.layout()` 计算，而 AppKit 要到下一个更新周期才调用它；若不在增删时
@@ -816,6 +821,14 @@ public final class NPBackupService {
 - **沙盒约束**：`com.apple.security.files.user-selected.read-write` 的授权只对当前进程有效，
   仅存路径会导致重启恢复时打不开原文件（退化为"未命名"文档，内容仍在）；因此元数据必须同时记录
   security-scoped bookmark，恢复时先 `resolveFileURL` 再用 `NSDocument(contentsOf:)` 打开。
+- **窗口分组契约**：`windowGroupID` / `tabIndex` 由 `noteWindowContext(windowGroupID:tabIndex:for:)` 写入；
+  值变化时该方法**立即重写元数据文件**（仅 `.json`，复用上次 `contentHash`，不重写内容快照），
+  使窗口分组与标签序在任何终止方式（含关机/登出/崩溃）下都能重启还原。
+- **与 AppKit 状态恢复的关系**：会话恢复由本服务**独占**——AppKit 无 "should save/restore state" 委托，
+  故在 `NPDocumentController` 覆写 `NSWindowRestoration` 的类方法
+  `restoreWindow(withIdentifier:state:completionHandler:)` 拒绝系统恢复，窗口经 `NPWindowFactory`
+  标记 `isRestorable = false`；否则关机/登录后系统会再打开一份同一文件的文档，与自研恢复叠加成两个标签。
+  会话恢复还会按文件 URL 去重（复用已打开文档与已承载它的窗口）。
 
 /// 崩溃恢复项：描述一份可恢复的备份
 public struct NPBackupItem {

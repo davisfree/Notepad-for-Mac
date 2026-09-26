@@ -24,8 +24,11 @@ import UniformTypeIdentifiers
 /// 是否为纯文本由编码检测（`NPEncodingManager.detect`）在 `read(from:)` 时判定：
 /// 二进制内容 → `NPEncodingError.undetectable` → 用户友好提示，符合 PRD FR-001
 /// "支持打开任意扩展名的纯文本文件" 的完整语义。
+///
+/// - Note: 刻意不加 `final`：关闭系统状态恢复需要覆写 `NSWindowRestoration` 的
+///   类方法 `restoreWindow(withIdentifier:state:completionHandler:)`（`class func`）。
 @MainActor
-final class NPDocumentController: NSDocumentController {
+class NPDocumentController: NSDocumentController {
 
     /// 返回文档类型对应的文档类。
     ///
@@ -49,6 +52,27 @@ final class NPDocumentController: NSDocumentController {
     override func runModalOpenPanel(_ openPanel: NSOpenPanel, forTypes types: [String]?) -> Int {
         openPanel.allowsOtherFileTypes = true
         return openPanel.runModal().rawValue
+    }
+
+    /// 拒绝 AppKit 的持久窗口恢复（`NSWindowRestoration` 入口）。
+    ///
+    /// 会话恢复由 `NPBackupService` 独占。关机/登录时系统会保存并恢复持久状态
+    /// （日志：`hasPersistentStateToRestore=1` → `_restorePersistentDocumentWithState:`
+    /// → `reopenDocument=`），与自研恢复叠加会让**同一文件出现两个文档、两个标签**
+    /// （关机重启回归根因）；普通退出因 `NSQuitAlwaysKeepsWindows=false` 不保存状态，
+    /// 所以只有关机/重启路径复现。
+    ///
+    /// Apple 文档（`NSWindowRestoration.h`）：`NSDocumentController` 是文档窗口的
+    /// restoration class，子类可覆写本方法控制恢复行为。此处直接以 `nil` 完成，
+    /// 既不创建文档也不恢复窗口。
+    /// - Parameters:
+    ///   - identifier: 窗口恢复标识（本实现忽略）
+    ///   - state: 持久状态编码器（本实现忽略）
+    ///   - completionHandler: 完成回调（以无窗口、无错误返回）
+    override class func restoreWindow(withIdentifier identifier: NSUserInterfaceItemIdentifier,
+                                      state: NSCoder,
+                                      completionHandler: @escaping (NSWindow?, Error?) -> Void) {
+        completionHandler(nil, nil)
     }
 
     /// 退出时跳过未保存文稿复查（用户规则 2：退出只缓存不提示）。

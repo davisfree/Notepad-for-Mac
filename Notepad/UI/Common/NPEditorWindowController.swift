@@ -75,6 +75,9 @@ final class NPEditorWindowController: NSWindowController {
     ///   - position: 插入位置（新建文档传 `.leading` 落在最左端，其余追加到最右端）
     func addTab(for document: NPTextDocument,
                 position: NPTabBarController.InsertionPosition) {
+        guard !tabBarController.entries.contains(where: { $0.document === document }) else {
+            return
+        }
         tabBarController.addTab(for: document, position: position)
         guard document.isReadOnly else {
             return

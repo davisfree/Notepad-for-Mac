@@ -12,14 +12,17 @@ import Foundation
 /// `NPBackupService` 的存储层：快照/元数据读写原语、会话状态落盘、缓存清理与记录读取。
 ///
 /// 从 `NPBackupService.swift` 拆出（主文件超过 SwiftLint `file_length` / `type_body_length`
-/// 阈值）。本层只做文件 IO 与记录解析，不参与节流调度与注册表管理，因此
+/// 阈值）。本层只做文件 IO、记录解析与元数据组装，不参与节流调度，因此
 /// `backupDirectory` / `fileManager` / `writeQueue` / 文件扩展名常量 / 静态 IO 助手为
-/// `internal`——它们都是 `let` 常量或无状态纯函数；真正的可变私有状态
-/// （`registrations`、`Registration`、`lastBackupError` 的写入）仍封在类内。
+/// `internal`——它们都是 `let` 常量或无状态纯函数。
+/// 元数据组装与“仅重写元数据”也在此（窗口归属/标签序变化时高频调用），
+/// 因此 `Registration` 与 `registrations` 为 `internal`；
+/// `lastBackupError` 的写入仍封在类内。
 ///
 /// 主文件仍需调用的成员（`writeSessionState` / `deleteBackupFiles` /
-/// `enqueueDeleteBackupFiles` / `writeBackupFiles` / `contentHash`）不能为 `private`
-/// （Swift 的 `private` 是文件级作用域），其余记录读取助手保持 `private`。
+/// `enqueueDeleteBackupFiles` / `writeBackupFiles` / `contentHash` / `makeMetadata` /
+/// `enqueueMetadataWrite`）不能为 `private`（Swift 的 `private` 是文件级作用域），
+/// 其余记录读取助手保持 `private`。
 extension NPBackupService {
 
     // MARK: - 恢复
@@ -204,6 +207,47 @@ extension NPBackupService {
         }
     }
 
+    // MARK: - 元数据
+
+    /// 组装备份元数据（含原文件路径与 security-scoped bookmark，供会话恢复重建文件关联）。
+    /// - Parameters:
+    ///   - document: 目标文档
+    ///   - registration: 该文档的注册信息
+    ///   - contentHash: 内容摘要（新快照写入时现算，仅元数据写入时沿用上次值）
+    /// - Returns: 元数据
+    func makeMetadata(for document: NPTextDocument, registration: Registration,
+                      contentHash: String) -> NPBackupMetadata {
+        NPBackupMetadata(
+            schemaVersion: Self.currentSchemaVersion,
+            originalFilePath: document.fileURL?.path,
+            cursorPosition: registration.cursorPosition,
+            encodingRawValue: document.currentEncoding.rawValue,
+            lineEndingRawValue: document.currentLineEnding.rawValue,
+            windowGroupID: registration.windowGroupID.uuidString,
+            tabIndex: registration.tabIndex,
+            timestamp: Date().timeIntervalSince1970,
+            revision: registration.revision,
+            contentHash: contentHash,
+            originalFileBookmark: Self.bookmarkBase64(for: document)
+        )
+    }
+
+    /// 仅重写元数据文件（窗口归属/标签序变化时调用；内容未变，无需重写快照）。
+    /// - Parameter document: 目标文档
+    func enqueueMetadataWrite(for document: NPTextDocument) {
+        let key = ObjectIdentifier(document)
+        guard let registration = registrations[key] else {
+            return
+        }
+        let metadata = makeMetadata(for: document, registration: registration,
+                                    contentHash: registration.contentHash)
+        let backupID = registration.backupID
+        let directory = backupDirectory
+        writeQueue.async {
+            try? Self.writeBackupMetadata(backupID: backupID, metadata: metadata, in: directory)
+        }
+    }
+
     // MARK: - 快照写盘原语
 
     /// 写入备份文件对（后台 IO，目录须已存在，采用临时文件 + 原子替换避免半成品快照）。
@@ -234,6 +278,35 @@ extension NPBackupService {
 
         try replaceOrMove(tempURL: tempContentURL, destinationURL: contentURL,
                           fileManager: fileManager)
+        try replaceOrMove(tempURL: tempMetadataURL, destinationURL: metadataURL,
+                          fileManager: fileManager)
+    }
+
+    /// 仅重写元数据文件（窗口归属/标签序变化时使用；内容快照不变，无需重写）。
+    ///
+    /// 内容文件尚不存在时跳过，避免产生"只有元数据、没有内容"的孤儿记录
+    /// （成对原子写入由 `writeBackupFiles` 负责，启动时会清理孤儿）。
+    /// - Parameters:
+    ///   - backupID: 备份标识
+    ///   - metadata: 元数据
+    ///   - directory: 备份目录
+    nonisolated static func writeBackupMetadata(backupID: UUID, metadata: NPBackupMetadata,
+                                                in directory: URL) throws {
+        let fileManager = FileManager.default
+        let contentURL = directory.appendingPathComponent("\(backupID.uuidString).\(contentFileExtension)")
+        guard fileManager.fileExists(atPath: contentURL.path) else {
+            return
+        }
+        let metadataURL = directory.appendingPathComponent("\(backupID.uuidString).\(metadataFileExtension)")
+        let tempMetadataURL = directory.appendingPathComponent("\(backupID.uuidString).tmp.\(metadataFileExtension)")
+
+        let metadataData = try JSONEncoder().encode(metadata)
+        let currentBytes = directoryByteCount(in: directory, excluding: [metadataURL, tempMetadataURL])
+        guard currentBytes + metadataData.count <= maxBackupDirectoryBytes else {
+            throw NPBackupError.storageLimitExceeded
+        }
+
+        try metadataData.write(to: tempMetadataURL, options: .atomic)
         try replaceOrMove(tempURL: tempMetadataURL, destinationURL: metadataURL,
                           fileManager: fileManager)
     }

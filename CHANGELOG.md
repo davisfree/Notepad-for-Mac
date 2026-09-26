@@ -2,6 +2,18 @@
 
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+- 新增会话恢复回归用例（`NPSessionRestoreTests`）：系统窗口恢复必须被拒绝（`NPDocumentController` 的 `restoreWindow` 覆写）、窗口必须标记为不可恢复、同一文件必须复用已打开文档、同一文档不得重复成为标签、同一窗口的标签必须持久化同一个 `windowGroupID` 且标签序正确；同时校验委托方法已暴露给 ObjC 运行时（防"方法名写错 → AppKit 永不调用"的死代码回归）
+
+### Changed
+- `NPBackupService` 的元数据组装与"仅重写元数据"移入 `NPBackupService+Storage.swift`（主文件已贴 SwiftLint `file_length` / `type_body_length` 阈值）；为此 `Registration` / `registrations` / `makeMetadata` / `enqueueMetadataWrite` 改为模块内可见（Swift 的 `private` 是文件级作用域）
+
+### Fixed
+- 修复"关机/重新登录后同一文件出现两个文档标签"：AppKit 的系统持久状态恢复与自研会话恢复叠加——关机/登出时系统**必定**保存持久状态（`NSQuitAlwaysKeepsWindows = false` 挡不住，它只影响"退出后是否还原窗口"），启动时经 `NSDocumentController.restoreWindowWithIdentifier:state:` → `_restorePersistentDocumentWithState:` 把**同一文件再打开一份**，与 `NPBackupService` 的会话恢复叠加成两个标签；普通"退出再打开"不保存系统状态，因此只在关机路径复现。现由自研恢复独占：`NPDocumentController` 覆写 `NSWindowRestoration` 的类方法 `restoreWindow(withIdentifier:state:completionHandler:)` 直接拒绝系统恢复、窗口经 `NPWindowFactory` 标记 `isRestorable = false`、会话恢复按**文件 URL 去重**并复用已承载该文档的窗口（新增 `NPTabWindowManager.windowController(containing:)`）；同时删除两个**不存在于 AppKit** 的死方法（`applicationShouldSaveState(_:)` / `applicationShouldRestoreState(_:)`——Swift 可编译但不会暴露给 ObjC，AppKit 永不调用），`applicationSupportsSecureRestorableState` 改为采纳安全编码，`applicationShouldHandleReopen` 恢复并加**启动期门控**（既避免与启动恢复叠加，又保留"关掉所有窗口后点 Dock 图标重建窗口"）
+- 修复"一个窗口的 N 个标签在重启后散成 N 个窗口"：`registerDocument` 会立即落盘，而元数据里的 `windowGroupID` 是该文档**随机分配**的；真正写入窗口组与标签序的 `noteWindowContext` 此前只改内存不落盘，于是磁盘上每个标签各持一个组、`tabIndex` 恒为 `0`，启动时按组重建窗口即成 N 个窗口（顺序同时丢失）；异常终止不执行退出流程的整批刷盘，因此同样只在关机路径复现。现 `noteWindowContext` 在窗口组/标签序变化时**立即重写元数据文件**（新增仅元数据写入原语 `writeBackupMetadata`，复用上次 `contentHash`，不重复写内容快照），标签序与窗口分组在任何终止方式下都可还原，拖拽重排的顺序也随之持久化
+
 ## [1.0.4] - 2026-09-18
 
 ### Added

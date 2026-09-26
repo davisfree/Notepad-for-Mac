@@ -120,6 +120,10 @@
 | UT-BACKUP-003 | 过期清理         | 构造修改时间为 7 天前的备份项            | 过期备份被清理，不出现在 `recoverableItems()` | P1     |
 | UT-BACKUP-004 | 原文件 bookmark  | 文件型文档注册后检查备份元数据           | 元数据含 `originalFileBookmark`（非沙盒宿主为普通 bookmark） | P0     |
 | UT-BACKUP-005 | 恢复保留文件关联 | 构造记录：原路径不可读 + bookmark 有效   | 恢复为文件型文档（标题 = 原文件名），而不是"未命名" | P0     |
+| UT-BACKUP-006 | 窗口分组与标签序落盘 | 同一窗口放两个标签，仅等待已排队写入（不触发整批刷盘）后读元数据 | 两条记录共享同一 `windowGroupID`，`tabIndex` 为 0/1（模拟异常终止：旧实现为两个随机组 + 恒 0，重启会散成两个窗口） | P0     |
+| UT-BACKUP-007 | 恢复按文件去重 | 同一文件已作为文档打开时再执行会话恢复 | 复用既有文档（`documents` 中该路径只有一个实例），不新建第二个文档或标签 | P0     |
+| UT-BACKUP-008 | 拒绝系统持久状态恢复 | 调用 `NPDocumentController.restoreWindow(withIdentifier:state:completionHandler:)`；检查 `NPWindowFactory` 产出的窗口 | 以 `(nil, nil)` 完成且不创建文档；窗口 `isRestorable == false` | P0     |
+| UT-BACKUP-009 | 同一文档不重复成标签 | 对同一文档再次调用 `NPEditorWindowController.addTab(for:position:)` | 标签数不变（幂等），不出现重复标签 | P1     |
 
 ### 2.7 崩溃报告模块
 
@@ -216,6 +220,8 @@
 | IT-TAB-006 | 崩溃恢复     | 强制退出 → 重启 | 所有标签恢复，未保存内容恢复       |
 | IT-TAB-007 | 关闭标签不恢复 | 关闭有内容标签 → 退出 → 重启 | 该标签不出现在恢复结果中（备份已随关闭删除） |
 | IT-TAB-008 | 崩溃丢失窗口 | 编辑后等待 1.1s 再 `kill -9` → 重启恢复；另组编辑后立即 `kill -9` → 重启恢复 | 前者恢复内容零丢失；后者丢失的编辑 ≤ 1 秒（PRD 5.3）。断言方法：恢复文本与最后已知内容 diff，丢失部分须落在最后一次节流窗口（1s）内 |
+| IT-TAB-009 | 关机重启同一窗口多标签 | 一个窗口开 N 个标签 → 关机（或 `kill -9`）→ 开机启动 | 仍为**一个窗口、N 个标签**，标签顺序不变（日志：1 条 `addTab pos=leading idx=0` + N-1 条 `pos=trailing`，`windowControllers=1`） |
+| IT-TAB-010 | 关机重启不重复打开文件 | 打开一个文件 → 关机 → 开机启动 | 该文件只出现一个文档/一个标签（系统持久状态恢复被拒绝，不与自研恢复叠加） |
 
 ### 3.4 本地化与构建变体
 

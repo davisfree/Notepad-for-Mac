@@ -88,6 +88,9 @@ enum NPWindowFactory {
             defer: false
         )
         window.minSize = minimumSize
+        // 会话恢复由 NPBackupService 独占：窗口不得进入系统持久状态，
+        // 否则关机/重新登录后 AppKit 会再次恢复同一文档，与自研恢复叠加成两个标签
+        window.isRestorable = false
         let displayName: String = document.displayName ?? ""
         window.title = "\(displayName) - Notepad"
         window.contentView = NSView(frame: window.contentLayoutRect)

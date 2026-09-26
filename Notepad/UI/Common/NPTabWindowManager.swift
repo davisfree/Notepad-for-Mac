@@ -97,6 +97,18 @@ final class NPTabWindowManager {
         openInNewWindow(document)
     }
 
+    /// 返回已承载该文档的标签组窗口（未承载时返回 `nil`）。
+    ///
+    /// 供会话恢复判断文档是否已经在某个窗口显示：系统状态恢复、最近使用或
+    /// Dock 拖入都可能先于会话恢复打开同一文件，此时不能再插入标签。
+    /// - Parameter document: 文档
+    /// - Returns: 承载该文档的标签组窗口控制器
+    func windowController(containing document: NPTextDocument) -> NPEditorWindowController? {
+        windowControllers.first { controller in
+            controller.tabBarController.entries.contains { $0.document === document }
+        }
+    }
+
     /// 在新窗口中托管文档（拖出标签 / 无窗口时新建 / 会话恢复分组）。
     /// - Parameter document: 文档
     /// - Returns: 新窗口控制器

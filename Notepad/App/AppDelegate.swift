@@ -24,6 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var backupFailureObserver: NSObjectProtocol?
 
+    /// 启动流程是否已完成。
+    ///
+    /// 用于区分「启动期的系统 reopen」（必须让给会话恢复）与「运行中用户点击 Dock」
+    /// （需要重建窗口），两者都会经 `applicationShouldHandleReopen` 进入。
+    private var hasFinishedLaunching = false
+
     override init() {
         super.init()
         // 禁用 AppKit 窗口状态还原：坏/空的持久状态会抑制启动时的自动新建文档
@@ -110,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // macOS 服务菜单（PRD FR-021）：注册服务提供者，启用"用所选文字新建文档"服务
         NSApp.servicesProvider = self
         NPShortcutService.shared.registerShortcuts()
+        hasFinishedLaunching = true
     }
 
     /// 退出行为（01 §3.5）：静默退出（用户规则 2）——内容已在会话备份，备份保留供下次恢复。
@@ -149,21 +156,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
-    /// 无窗口时点击 Dock 图标：优先把内存中仍打开的文档（关窗摘除路径保留的）重建为窗口；
-    /// 无任何文档时新建无标题窗口。
+    /// 会话窗口完全由 NPBackupService 恢复，禁止 AppKit 同时恢复窗口状态。
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            let documents = NSDocumentController.shared.documents.compactMap { $0 as? NPTextDocument }
-            if documents.isEmpty {
-                openUntitledWindowIfNoDocuments()
-            } else {
-                for document in documents {
-                    // Dock 重开：重建已有关窗文档，按原顺序追加（不改变既有标签序）
-                    NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document, position: .trailing)
-                }
+        // 启动期的 reopen 必须让给会话恢复：AppKit 的持久状态恢复正在并行进行
+        // （日志：_reopenWindowsAsNecessaryIncludingRestorableState），此时创建/重建
+        // 文档会与恢复结果叠加成两个标签。
+        guard hasFinishedLaunching, !flag else {
+            return true
+        }
+        let documents = NSDocumentController.shared.documents.compactMap { $0 as? NPTextDocument }
+        if documents.isEmpty {
+            openUntitledWindowIfNoDocuments()
+        } else {
+            for document in documents {
+                // Dock 重开：重建已有关窗文档，按原顺序追加（不改变既有标签序）
+                NPTabWindowManager.shared.addDocumentAsTabOrNewWindow(document, position: .trailing)
             }
         }
         return true
+    }
+
+    /// 采纳安全编码（Apple 推荐实现，否则每次启动都会输出 StateRestoration 告警）。
+    /// 窗口本身已通过 `NPWindowFactory` 的 `isRestorable = false` 排除在持久状态之外。
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        true
     }
 
     // MARK: - 私有

@@ -149,7 +149,10 @@ final class NPBackupService {
     let writeQueue = DispatchQueue(label: "com.notepad.backup.write", qos: .utility)
 
     /// 文档注册信息。
-    private struct Registration {
+    ///
+    /// - Note: 非 `private`：元数据组装与仅元数据写入拆分在
+    ///   `NPBackupService+Storage.swift`（详见该文件头部说明）。
+    struct Registration {
         /// 文档（弱引用）
         weak var document: NPTextDocument?
         /// 备份文件标识
@@ -164,14 +167,18 @@ final class NPBackupService {
         var lastWriteDate: Date
         /// 已提交或正在提交的快照版本
         var revision: UInt64
+        /// 上次写入内容的内容摘要（仅重写元数据时可复用，避免重复读内容）
+        var contentHash: String
         /// 尾缘写入任务
         var trailingTask: Task<Void, Never>?
         /// 写盘进行中（防止写回清脏触发的重入）
         var isFlushing: Bool
     }
 
-    /// 注册表（按文档对象标识）
-    private var registrations: [ObjectIdentifier: Registration] = [:]
+    /// 注册表（按文档对象标识）。
+    ///
+    /// - Note: 非 `private`，供 `NPBackupService+Storage.swift` 的扩展访问。
+    var registrations: [ObjectIdentifier: Registration] = [:]
 
     /// 是否处于退出流程（`markTerminating` 置位）。
     /// 供关窗路径区分"用户手动关窗"（删除备份）与"退出流程关窗"（保留备份）。
@@ -247,6 +254,7 @@ final class NPBackupService {
             cursorPosition: 0,
             lastWriteDate: .distantPast,
             revision: 0,
+            contentHash: "",
             trailingTask: nil,
             isFlushing: false
         )
@@ -330,14 +338,29 @@ final class NPBackupService {
     }
 
     /// 更新窗口归属与标签序（加入标签组 / 拖拽排序后调用）。
+    ///
+    /// 变化时**立即重写元数据文件**：`windowGroupID` 决定重启后“几个窗口”、
+    /// `tabIndex` 决定组内标签序。只改内存会在异常终止（关机/登出，不跑
+    /// `applicationShouldTerminate` 的整批刷盘）后留下按文档随机分配的旧分组，
+    /// 同一窗口的 N 个标签就会在下次启动散成 N 个窗口。
     /// - Parameters:
     ///   - windowGroupID: 标签组标识
     ///   - tabIndex: 组内标签序
     ///   - document: 目标文档
     func noteWindowContext(windowGroupID: UUID, tabIndex: Int, for document: NPTextDocument) {
         let key = ObjectIdentifier(document)
-        registrations[key]?.windowGroupID = windowGroupID
-        registrations[key]?.tabIndex = tabIndex
+        guard var registration = registrations[key] else {
+            return
+        }
+        let didChange = registration.windowGroupID != windowGroupID
+            || registration.tabIndex != tabIndex
+        registration.windowGroupID = windowGroupID
+        registration.tabIndex = tabIndex
+        registrations[key] = registration
+        guard didChange else {
+            return
+        }
+        enqueueMetadataWrite(for: document)
     }
 
     /// 记录光标位置（备份时随元数据写盘）。
@@ -508,7 +531,11 @@ final class NPBackupService {
             postBackupFailure(.snapshotTooLarge)
             return
         }
-        let metadata = makeMetadata(for: document, registration: registration, content: content)
+        let contentHash = Self.contentHash(for: content)
+        let metadata = makeMetadata(for: document, registration: registration, contentHash: contentHash)
+        // 记录内容摘要，供后续仅元数据写入复用（窗口归属变化时无需重写快照）
+        registration.contentHash = contentHash
+        registrations[key] = registration
         let directory = backupDirectory
         writeQueue.async { [weak self] in
             do {
@@ -541,29 +568,6 @@ final class NPBackupService {
     }
 
     // MARK: - 失败上报
-
-    /// 组装备份元数据（含原文件路径与 security-scoped bookmark，供会话恢复重建文件关联）。
-    /// - Parameters:
-    ///   - document: 目标文档
-    ///   - registration: 该文档的注册信息
-    ///   - content: 待写入的内容（用于内容摘要）
-    /// - Returns: 元数据
-    private func makeMetadata(for document: NPTextDocument, registration: Registration,
-                              content: String) -> NPBackupMetadata {
-        NPBackupMetadata(
-            schemaVersion: Self.currentSchemaVersion,
-            originalFilePath: document.fileURL?.path,
-            cursorPosition: registration.cursorPosition,
-            encodingRawValue: document.currentEncoding.rawValue,
-            lineEndingRawValue: document.currentLineEnding.rawValue,
-            windowGroupID: registration.windowGroupID.uuidString,
-            tabIndex: registration.tabIndex,
-            timestamp: Date().timeIntervalSince1970,
-            revision: registration.revision,
-            contentHash: Self.contentHash(for: content),
-            originalFileBookmark: Self.bookmarkBase64(for: document)
-        )
-    }
 
     private func postBackupFailure(_ error: NPBackupError) {
         NotificationCenter.default.post(

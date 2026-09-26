@@ -28,7 +28,10 @@ extension AppDelegate {
                 continue
             }
             let windowController: NPEditorWindowController
-            if let existing = windowControllersByGroup[record.windowGroupID] {
+            if let host = NPTabWindowManager.shared.windowController(containing: document) {
+                // 文档已在窗口中（系统恢复/最近使用先打开）：复用，不重复插入标签
+                windowController = host
+            } else if let existing = windowControllersByGroup[record.windowGroupID] {
                 // 显式 `.trailing`：会话恢复必须按记录的标签序还原，
                 // 不能走"新建标签页插到最左端"的路径
                 existing.addTab(for: document, position: .trailing)
@@ -75,7 +78,14 @@ extension AppDelegate {
             }
             return document
         }
-        // 已存盘文档：从原位置打开（bookmark 已开启沙盒访问权）
+        // 已存盘文档：优先复用**已打开的同一文件**（系统状态恢复/最近使用/Dock 拖入
+        // 可能先打开它），否则从原位置打开（bookmark 已开启沙盒访问权）。
+        // 不复用会产生同一文件两个文档、两个标签（关机重启回归根因）。
+        if let opened = openedDocument(forFileAt: originalFileURL) {
+            applyBackupContent(record: record, backupContent: backupContent,
+                               to: opened, originalFileURL: originalFileURL)
+            return opened
+        }
         guard let document = try? NPTextDocument(contentsOf: originalFileURL,
                                                  ofType: "public.plain-text") else {
             // 原文件已丢失或不可访问：退化为未命名文档 + 备份内容；仅非空内容标脏
@@ -92,6 +102,28 @@ extension AppDelegate {
         if !controller.documents.contains(where: { $0 === document }) {
             controller.addDocument(document)
         }
+        applyBackupContent(record: record, backupContent: backupContent,
+                           to: document, originalFileURL: originalFileURL)
+        return document
+    }
+
+    /// 查找已打开的同一文件的文档。
+    /// - Parameter fileURL: 原文件位置
+    /// - Returns: 已打开的文档（无则 `nil`）
+    private func openedDocument(forFileAt fileURL: URL) -> NPTextDocument? {
+        NSDocumentController.shared.documents
+            .compactMap { $0 as? NPTextDocument }
+            .first { $0.fileURL?.path == fileURL.path }
+    }
+
+    /// 按"备份较新则用备份内容"的决策将备份内容应用到文档（含冲突提示）。
+    /// - Parameters:
+    ///   - record: 备份记录
+    ///   - backupContent: 备份内容（读取失败时为 nil）
+    ///   - document: 目标文档
+    ///   - originalFileURL: 原文件位置
+    private func applyBackupContent(record: NPBackupRecord, backupContent: String?,
+                                    to document: NPTextDocument, originalFileURL: URL) {
         let fileModificationDate = try? originalFileURL.resourceValues(
             forKeys: [.contentModificationDateKey]
         ).contentModificationDate
@@ -109,7 +141,6 @@ extension AppDelegate {
                   fileModificationDate != nil {
             presentRestoreConflictNotification()
         }
-        return document
     }
 
     /// 提示用户原文件较新，因此恢复时保留了原文件内容。
